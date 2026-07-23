@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#19e5e6",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#112121",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<title>Psychologist Profile</title>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
+<div class="relative flex h-auto min-h-screen w-full flex-col bg-background-light dark:bg-background-dark overflow-x-hidden">
+<!-- Top Navigation -->
+<nav class="flex items-center bg-white dark:bg-slate-900 p-4 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800 justify-between">
+<div class="text-slate-900 dark:text-slate-100 flex size-10 shrink-0 items-center cursor-pointer">
+<span class="material-symbols-outlined">arrow_back</span>
+</div>
+<h2 class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight flex-1 px-4 text-center">Psychologist Profile</h2>
+<div class="flex w-10 items-center justify-end">
+<button class="flex items-center justify-center rounded-lg h-10 w-10 bg-transparent text-slate-900 dark:text-slate-100">
+<span class="material-symbols-outlined">share</span>
+</button>
+</div>
+</nav>
+<!-- Profile Header -->
+<div class="flex p-6 @container bg-white dark:bg-slate-900">
+<div class="flex w-full flex-col gap-6 items-center">
+<div class="flex gap-4 flex-col items-center">
+<div class="relative">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full min-h-32 w-32 border-4 border-primary/20" data-alt="Professional headshot of a female psychologist smiling" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCuLQiChMGWWZeWUMAXeKsstyn9b_FBQ1E9pbVaV6JqjaSoc2R6ZkeNmmKWUpfN9iTklzNO0Bt9aUzoxCASP23dxV93wjKHZkK4BXoRS5m5-TLRQ_uwNbvqKYDGtsiYHtGWnWgUU-KJ7XhKaxs8l-ssXAzrqS99ZLmu5RaQhXE5QRH6G3z0i_5DXoLfNogUJnJr2m4yfZqoNYHTgjR5dxvLqjs6T6wEdQGUyNOw5aevqQiCWdVA0ZqkwG-xQTd2fezEeo655utRUQnB");'>
+</div>
+<div class="absolute bottom-1 right-1 bg-primary text-slate-900 rounded-full p-1 border-2 border-white dark:border-slate-900">
+<span class="material-symbols-outlined text-sm block">verified</span>
+</div>
+</div>
+<div class="flex flex-col items-center justify-center">
+<p class="text-slate-900 dark:text-slate-100 text-2xl font-bold leading-tight tracking-tight text-center">Dr. Sarah Jenkins, PhD</p>
+<p class="text-slate-600 dark:text-slate-400 text-base font-medium text-center">Clinical Psychologist • 12 years exp.</p>
+<div class="flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-yellow-500 fill-current text-sm">star</span>
+<p class="text-slate-700 dark:text-slate-300 text-sm font-semibold">4.9 <span class="text-slate-400 font-normal">(120 reviews)</span></p>
+</div>
+</div>
+</div>
+<div class="flex gap-3 w-full max-w-md">
+<button class="flex-1 cursor-pointer items-center justify-center rounded-lg h-12 px-6 bg-primary text-slate-900 text-sm font-bold tracking-wide">
+                        Book a Session
+                    </button>
+<button class="flex min-w-[56px] cursor-pointer items-center justify-center rounded-lg h-12 px-2 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+<span class="material-symbols-outlined">chat_bubble</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Quick Stats -->
+<div class="flex flex-wrap gap-4 p-4">
+<div class="flex min-w-[100px] flex-1 flex-col gap-1 rounded-xl p-4 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">Patients</p>
+<p class="text-slate-900 dark:text-slate-100 text-xl font-bold">500+</p>
+</div>
+<div class="flex min-w-[100px] flex-1 flex-col gap-1 rounded-xl p-4 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">Experience</p>
+<p class="text-slate-900 dark:text-slate-100 text-xl font-bold">12 yrs</p>
+</div>
+<div class="flex min-w-[100px] flex-1 flex-col gap-1 rounded-xl p-4 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">Languages</p>
+<p class="text-slate-900 dark:text-slate-100 text-xl font-bold">EN, ES</p>
+</div>
+</div>
+<!-- About Section -->
+<div class="px-4 py-2">
+<h3 class="text-slate-900 dark:text-slate-100 text-lg font-bold mb-2">About Me</h3>
+<p class="text-slate-600 dark:text-slate-400 text-base leading-relaxed">
+                Specializing in cognitive behavioral therapy (CBT) and mindfulness-based stress reduction. Dedicated to helping individuals navigate anxiety, depression, and trauma through evidence-based practices and a compassionate, person-centered approach.
+            </p>
+</div>
+<!-- Specialties -->
+<div class="px-4 py-4">
+<h3 class="text-slate-900 dark:text-slate-100 text-lg font-bold mb-3">Specialties</h3>
+<div class="flex flex-wrap gap-2">
+<span class="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-sm font-medium">Cognitive Behavioral Therapy</span>
+<span class="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-sm font-medium">Anxiety Disorders</span>
+<span class="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-sm font-medium">Depression</span>
+<span class="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-sm font-medium">Mindfulness</span>
+<span class="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-sm font-medium">Stress Management</span>
+</div>
+</div>
+<!-- Availability Preview -->
+<div class="px-4 py-4">
+<div class="flex justify-between items-center mb-4">
+<h3 class="text-slate-900 dark:text-slate-100 text-lg font-bold">Availability</h3>
+<button class="text-primary text-sm font-bold">View Full Calendar</button>
+</div>
+<div class="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+<div class="flex flex-col items-center min-w-[70px] p-3 rounded-xl bg-primary text-slate-900">
+<span class="text-xs font-medium uppercase">Mon</span>
+<span class="text-lg font-bold">12</span>
+</div>
+<div class="flex flex-col items-center min-w-[70px] p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+<span class="text-xs font-medium uppercase text-slate-500">Tue</span>
+<span class="text-lg font-bold text-slate-900 dark:text-slate-100">13</span>
+</div>
+<div class="flex flex-col items-center min-w-[70px] p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+<span class="text-xs font-medium uppercase text-slate-500">Wed</span>
+<span class="text-lg font-bold text-slate-900 dark:text-slate-100">14</span>
+</div>
+<div class="flex flex-col items-center min-w-[70px] p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+<span class="text-xs font-medium uppercase text-slate-500">Thu</span>
+<span class="text-lg font-bold text-slate-900 dark:text-slate-100">15</span>
+</div>
+<div class="flex flex-col items-center min-w-[70px] p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+<span class="text-xs font-medium uppercase text-slate-500">Fri</span>
+<span class="text-lg font-bold text-slate-900 dark:text-slate-100">16</span>
+</div>
+</div>
+<div class="mt-4 grid grid-cols-3 gap-2">
+<button class="py-2 px-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-primary/20 hover:text-primary transition-colors">09:00 AM</button>
+<button class="py-2 px-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-primary/20 hover:text-primary transition-colors">10:30 AM</button>
+<button class="py-2 px-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-primary/20 hover:text-primary transition-colors">02:00 PM</button>
+</div>
+</div>
+<!-- Recent Reviews -->
+<div class="px-4 py-4 pb-12">
+<div class="flex justify-between items-center mb-4">
+<h3 class="text-slate-900 dark:text-slate-100 text-lg font-bold">Reviews</h3>
+<button class="text-primary text-sm font-bold">See All</button>
+</div>
+<div class="space-y-4">
+<!-- Review 1 -->
+<div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                                JD
+                            </div>
+<div>
+<p class="text-sm font-bold text-slate-900 dark:text-slate-100">John D.</p>
+<div class="flex text-yellow-500">
+<span class="material-symbols-outlined text-xs fill-current">star</span>
+<span class="material-symbols-outlined text-xs fill-current">star</span>
+<span class="material-symbols-outlined text-xs fill-current">star</span>
+<span class="material-symbols-outlined text-xs fill-current">star</span>
+<span class="material-symbols-outlined text-xs fill-current">star</span>
+</div>
+</div>
+</div>
+<span class="text-xs text-slate-400">2 days ago</span>
+</div>
+<p class="text-sm text-slate-600 dark:text-slate-400">
+                        Dr. Jenkins was incredibly empathetic and helped me through a very difficult transition in my career. Highly recommend her for anyone dealing with stress.
+                    </p>
+</div>
+<!-- Review 2 -->
+<div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                                AM
+                            </div>
+<div>
+<p class="text-sm font-bold text-slate-900 dark:text-slate-100">Anna M.</p>
+<div class="flex text-yellow-500">
+<span class="material-symbols-outlined text-xs fill-current">star</span>
+<span class="material-symbols-outlined text-xs fill-current">star</span>
+<span class="material-symbols-outlined text-xs fill-current">star</span>
+<span class="material-symbols-outlined text-xs fill-current">star</span>
+<span class="material-symbols-outlined text-xs fill-current">star_half</span>
+</div>
+</div>
+</div>
+<span class="text-xs text-slate-400">1 week ago</span>
+</div>
+<p class="text-sm text-slate-600 dark:text-slate-400">
+                        Great listener and provides practical tools for anxiety management. The sessions are always productive.
+                    </p>
+</div>
+</div>
+</div>
+<!-- Sticky Footer Action -->
+<div class="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 md:hidden">
+<button class="w-full bg-primary text-slate-900 h-12 rounded-lg font-bold text-base shadow-lg shadow-primary/20">
+                Book Initial Consultation
+            </button>
+</div>
+</div>
+<style>
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</body></html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MindEase - Your Path to Peace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#19e5e6",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#112121",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="relative flex h-auto min-h-screen w-full flex-col bg-background-light dark:bg-background-dark group/design-root overflow-x-hidden">
+<!-- Top App Bar -->
+<div class="flex items-center bg-transparent p-4 pb-2 justify-between">
+<div class="text-slate-900 dark:text-slate-100 flex size-12 shrink-0 items-center justify-start">
+<span class="material-symbols-outlined text-2xl">
+                    close
+                </span>
+</div>
+<h2 class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-12">MindEase</h2>
+</div>
+<!-- Illustration Hero Section -->
+<div class="@container">
+<div class="@[480px]:px-6 @[480px]:py-4">
+<div class="w-full bg-center bg-no-repeat bg-cover flex flex-col justify-end overflow-hidden bg-primary/10 @[480px]:rounded-xl min-h-[400px]" data-alt="Calm serene landscape with soft sunlight and fog" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBKuaib6VAqAkvmD3Mq_Y0BNe9bjOO8GPi_tlXbIPE0bWzr1a1foJPc9Ngko6QZU1yJ2CtA932ea5s99JVitLgfLS0XcGotT7K0Gxx1bEj-gCh7Rs0zxSzpzvyFKWP21EC793xOuZ-7nbvmP7K9dVqdz-5QPj2e_WFMzNmQvXk2LgoaMkfwMPHXvT8dVvDX2fJWcgL2k95NT55neGJCVKWfrzKXcjRRp_UIvJgEbqWsMSuxLzM0zP_1xD-hbtC-a9ZsGzx7tPm-veA5");'>
+</div>
+</div>
+</div>
+<!-- Content Section -->
+<div class="flex flex-col items-center px-6 pt-10 pb-8 text-center">
+<h1 class="text-slate-900 dark:text-slate-100 tracking-tight text-[36px] font-bold leading-tight mb-4">
+                Find Your Inner Peace
+            </h1>
+<p class="text-slate-600 dark:text-slate-400 text-lg font-normal leading-relaxed max-w-[360px]">
+                Join thousands of users finding daily balance through guided mindfulness and personalized mental health support.
+            </p>
+</div>
+<!-- Actions Section -->
+<div class="mt-auto flex justify-center pb-12">
+<div class="flex flex-1 gap-4 max-w-[480px] flex-col items-stretch px-6">
+<!-- Primary Action -->
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-14 px-5 bg-primary text-slate-900 text-lg font-bold leading-normal tracking-wide transition-all hover:brightness-110 active:scale-[0.98]">
+<span class="truncate">Get Started</span>
+</button>
+<!-- Secondary Action -->
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-14 px-5 bg-slate-200/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 text-lg font-bold leading-normal tracking-wide transition-all hover:bg-slate-300/50 dark:hover:bg-slate-700/50 active:scale-[0.98]">
+<span class="truncate">Log In</span>
+</button>
+<!-- Footer Text -->
+<div class="flex items-center justify-center gap-1 mt-4">
+<p class="text-sm text-slate-500 dark:text-slate-400">By continuing, you agree to our</p>
+<a class="text-sm font-semibold text-primary underline decoration-primary/30" href="#">Terms</a>
+</div>
+</div>
+</div>
+<!-- Decorative Element -->
+<div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-64 h-1 bg-slate-300/20 dark:bg-slate-700/20 rounded-t-full mb-2"></div>
+</div>
+</body></html>
