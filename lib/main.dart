@@ -5,6 +5,7 @@ import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/profile_screen.dart';
 import 'theme/app_theme.dart';
+import 'services/auth_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -61,18 +62,59 @@ class AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<AppRoot> {
   bool _showOnboarding = true;
+  bool _isLoading = true;
+  bool _isAuthenticated = false;
+  Map<String, dynamic>? _currentUser;
   int _currentNavIndex =
       0; // 0 = Home, 1 = Explore/Directory, 2 = Community, 3 = Profile
   Psychologist? _selectedPsychologist;
 
   @override
+  void initState() {
+    super.initState();
+    _checkAuthStatus();
+  }
+
+  Future<void> _checkAuthStatus() async {
+    final authService = AuthService();
+    final hasToken = await authService.hasToken();
+    if (hasToken) {
+      final result = await authService.getProfile();
+      if (result['success'] == true) {
+        if (mounted) {
+          setState(() {
+            _currentUser = result['data'];
+            _isAuthenticated = true;
+            _showOnboarding = false;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _isAuthenticated = false;
+        _showOnboarding = true;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (_showOnboarding) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: AppTheme.primary),
+        ),
+      );
+    }
+
+    if (!_isAuthenticated || _showOnboarding) {
       return OnboardingScreen(
         onFinishOnboarding: () {
-          setState(() {
-            _showOnboarding = false;
-          });
+          _checkAuthStatus();
         },
       );
     }
@@ -402,12 +444,12 @@ class _AppRootState extends State<AppRoot> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Alex Rivers',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            Text(
+              _currentUser?['name'] ?? 'Alex Rivers',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             Text(
-              'Member since Oct 2025',
+              _currentUser?['email'] ?? 'Member since Oct 2025',
               style: TextStyle(
                 fontSize: 13,
                 color: isDark
@@ -451,11 +493,16 @@ class _AppRootState extends State<AppRoot> {
 
             // Log Out Button
             TextButton(
-              onPressed: () {
-                setState(() {
-                  _showOnboarding = true;
-                  _currentNavIndex = 0;
-                });
+              onPressed: () async {
+                await AuthService().logout();
+                if (mounted) {
+                  setState(() {
+                    _isAuthenticated = false;
+                    _showOnboarding = true;
+                    _currentUser = null;
+                    _currentNavIndex = 0;
+                  });
+                }
               },
               child: const Text(
                 'Sign Out',

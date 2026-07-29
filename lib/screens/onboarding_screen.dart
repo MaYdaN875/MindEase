@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'login_screen.dart';
+import 'register_screen.dart';
 
 class OnboardingScreen extends StatelessWidget {
   final VoidCallback onFinishOnboarding;
@@ -104,7 +106,16 @@ class OnboardingScreen extends StatelessWidget {
                 children: [
                   // Primary button
                   ElevatedButton(
-                    onPressed: onFinishOnboarding,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RegisterScreen(
+                            onRegisterSuccess: onFinishOnboarding,
+                          ),
+                        ),
+                      );
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       foregroundColor: AppTheme.textDark,
@@ -127,7 +138,16 @@ class OnboardingScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   // Secondary button
                   OutlinedButton(
-                    onPressed: onFinishOnboarding,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => LoginScreen(
+                            onLoginSuccess: onFinishOnboarding,
+                          ),
+                        ),
+                      );
+                    },
                     style: OutlinedButton.styleFrom(
                       backgroundColor: isDark
                           ? const Color(0xFF1E293B).withOpacity(0.5)
