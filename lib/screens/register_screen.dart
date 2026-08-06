@@ -17,8 +17,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   String _selectedRole = 'USER';
+  bool _acceptedPrivacy = false;
   bool _isLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
@@ -28,11 +30,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedRole == 'PSYCHOLOGIST' && !_acceptedPrivacy) {
+      setState(() {
+        _errorMessage = 'Debes aceptar los términos y el aviso de privacidad profesional.';
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -42,12 +52,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final phone = _phoneController.text.trim();
 
     final result = await AuthService().register(
       name,
       email,
       password,
       role: _selectedRole,
+      phone: phone.isNotEmpty ? phone : null,
+      acceptedPrivacy: _acceptedPrivacy,
     );
 
     if (mounted) {
@@ -56,12 +69,107 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       if (result['success'] == true) {
-        widget.onRegisterSuccess();
+        final userName = result['data']?['name'] ?? 'Usuario';
+        _showSuccessAndRedirect(userName);
       } else {
         setState(() {
           _errorMessage = result['message'] ?? 'Ocurrió un error en el registro';
         });
       }
+    }
+  }
+
+  Future<void> _showSuccessAndRedirect(String userName) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.cardDark : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: AppTheme.primary.withOpacity(0.2),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primary.withOpacity(0.1),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.elasticOut,
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check_circle_outline_rounded,
+                          color: AppTheme.primary,
+                          size: 64,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  '¡Registro Exitoso!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tu cuenta ha sido creada, $userName',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    if (mounted) {
+      Navigator.of(context).pop(); // Pop Dialog
+      Navigator.of(context).pop(); // Pop RegisterScreen
+      widget.onRegisterSuccess(); // Trigger App State Check
     }
   }
 
@@ -113,7 +221,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
                   if (_errorMessage != null) ...[
                     Container(
@@ -132,6 +240,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 20),
                   ],
 
+                  // Name Field
                   TextFormField(
                     controller: _nameController,
                     style: TextStyle(color: isDark ? AppTheme.textLight : AppTheme.textDark),
@@ -170,8 +279,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
+                  // Email Field
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -211,8 +321,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
+                  // Telephone Field
+                  TextFormField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    style: TextStyle(color: isDark ? AppTheme.textLight : AppTheme.textDark),
+                    decoration: InputDecoration(
+                      labelText: 'Número Telefónico',
+                      labelStyle: TextStyle(
+                        color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                      ),
+                      prefixIcon: const Icon(Icons.phone_outlined, color: AppTheme.primary),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: isDark ? AppTheme.cardDark.withOpacity(0.5) : Colors.white,
+                    ),
+                    validator: (value) {
+                      if (_selectedRole == 'PSYCHOLOGIST') {
+                        if (value == null || value.isEmpty) {
+                          return 'El número telefónico es obligatorio para psicólogos';
+                        }
+                        if (value.trim().length < 8) {
+                          return 'Ingresa un número telefónico válido';
+                        }
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Password Field
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -265,6 +420,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 20),
 
+                  // Account Type
                   Text(
                     'Tipo de Cuenta',
                     style: TextStyle(
@@ -285,8 +441,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
 
+                  // Privacy Terms Checkbox (Only visible or active if Psychologist selected, or for both)
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _acceptedPrivacy,
+                        activeColor: AppTheme.primary,
+                        checkColor: AppTheme.bgDark,
+                        onChanged: (val) {
+                          setState(() {
+                            _acceptedPrivacy = val ?? false;
+                          });
+                        },
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _acceptedPrivacy = !_acceptedPrivacy;
+                            });
+                          },
+                          child: Text(
+                            'Acepto el aviso de privacidad y términos para profesionales',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Register Button
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleRegister,
                     style: ElevatedButton.styleFrom(

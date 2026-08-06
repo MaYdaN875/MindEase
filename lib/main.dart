@@ -6,6 +6,7 @@ import 'screens/onboarding_screen.dart';
 import 'screens/profile_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
+import 'screens/application_status_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -114,6 +115,16 @@ class _AppRootState extends State<AppRoot> {
     if (!_isAuthenticated || _showOnboarding) {
       return OnboardingScreen(
         onFinishOnboarding: () {
+          _checkAuthStatus();
+        },
+      );
+    }
+
+    final roles = List<String>.from(_currentUser?['roles'] ?? []);
+    if (roles.contains('PSYCHOLOGIST_APPLICANT')) {
+      return ApplicationStatusScreen(
+        onLogout: () async {
+          await AuthService().logout();
           _checkAuthStatus();
         },
       );
