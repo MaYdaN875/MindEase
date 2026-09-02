@@ -15,8 +15,9 @@ class ApplicationStatusScreen extends StatefulWidget {
 class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
   bool _isLoading = true;
   String? _errorMessage;
-  String _status = 'REGISTRO_INCOMPLETO';
+  String _status = 'PENDIENTE_REVISION';
   List<dynamic> _history = [];
+  Map<String, dynamic>? _userProfile;
 
   @override
   void initState() {
@@ -30,6 +31,11 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
       _errorMessage = null;
     });
 
+    final profileRes = await AuthService().getProfile();
+    if (profileRes['success'] == true) {
+      _userProfile = profileRes['user'];
+    }
+
     final result = await AuthService().getPsychologistReviewStatus();
 
     if (mounted) {
@@ -39,7 +45,7 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
 
       if (result['success'] == true) {
         setState(() {
-          _status = result['data']['currentStatus'] ?? 'REGISTRO_INCOMPLETO';
+          _status = result['data']['currentStatus'] ?? 'PENDIENTE_REVISION';
           _history = result['data']['history'] ?? [];
         });
       } else {
@@ -50,14 +56,72 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
     }
   }
 
-  Future<void> _handleLogout(BuildContext context) async {
-    widget.onLogout();
+  void _showSupportDialog() {
+    final msgController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.support_agent, color: AppTheme.primary),
+              SizedBox(width: 8),
+              Text('Contactar Soporte'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Escribe tu consulta y un agente revisará tu cuenta.'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: msgController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Mensaje',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Mensaje de soporte enviado exitosamente.'),
+                    backgroundColor: AppTheme.primaryDark,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: AppTheme.textDark,
+              ),
+              child: const Text('Enviar', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final avatarUrl = _userProfile?['avatarUrl'] ??
+        'https://lh3.googleusercontent.com/aida-public/AB6AXuBrEb52c2ga1R7fwtmJ7uJd9yS9PH5Tsap_JfEj0dsur64-OC1T6ta1TEt4WQuWm3TNdpsmuNJ_ZoyGZwKa0cNPu705cOQGewftc1OFpixgmyUaGR3M6EJj5ASx0yuqY8rdXzqvNy1K2A7aZ0tbleng9LDVkLrP5nay5-8b4eds3GUUnzIiuko1EaMsvpavG31f_M_OY2j8pNSwaV_35EgwrMx7x2uiZtyz7o988s8GSiIjRvvQe0e7jQ';
 
     if (_isLoading) {
       return const Scaffold(
@@ -69,12 +133,24 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Estado de Solicitud'),
-        centerTitle: true,
+        title: const Text('Estados de Perfil'),
         actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: AppTheme.primary, width: 1.5),
+              image: DecorationImage(
+                image: NetworkImage(avatarUrl),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
-            onPressed: () => _handleLogout(context),
+            icon: const Icon(Icons.logout, color: AppTheme.error),
+            onPressed: widget.onLogout,
             tooltip: 'Cerrar Sesión',
           ),
         ],
@@ -85,7 +161,7 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
           color: AppTheme.primary,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -93,39 +169,137 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.1),
+                      color: AppTheme.errorContainer,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                      style: const TextStyle(color: AppTheme.onErrorContainer, fontSize: 13),
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                 ],
 
-                // Dynamic Status Card
-                _buildStatusCard(isDark),
-                const SizedBox(height: 28),
-
-                // History Timeline Section
-                const Text(
-                  'Historial de Solicitudes',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                Text(
+                  'Estado Actual de Verificación',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                  ),
                 ),
-                const SizedBox(height: 16),
-                _history.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24.0),
-                        child: Text(
-                          'No hay registros en el historial todavía.',
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
-                          textAlign: TextAlign.center,
+                const SizedBox(height: 12),
+
+                // Card 1: Verificación en Proceso (Pending)
+                _buildVerificationCard(
+                  borderColor: AppTheme.tertiaryFixedDim,
+                  iconBg: AppTheme.tertiaryFixedDim.withValues(alpha: 0.15),
+                  iconColor: AppTheme.tertiaryFixedDim,
+                  icon: Icons.schedule,
+                  title: 'Verificación en Proceso',
+                  description:
+                      'Tu perfil está siendo revisado por nuestro equipo de validación clínica. Te notificaremos una vez que la verificación esté completa.',
+                  actionText: 'Ver detalles de verificación',
+                  actionIcon: Icons.chevron_right,
+                  isActive: _status == 'PENDIENTE_REVISION' || _status == 'EN_REVISION',
+                  isDark: isDark,
+                  onAction: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Tu expediente está en la cola de revisión.'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // Card 2: Acción Requerida (Requires changes)
+                _buildVerificationCard(
+                  borderColor: AppTheme.primary,
+                  iconBg: AppTheme.primary.withValues(alpha: 0.15),
+                  iconColor: AppTheme.primary,
+                  icon: Icons.error_outline,
+                  title: 'Acción Requerida',
+                  description:
+                      'Necesitamos información adicional o corregir documentos para completar tu verificación profesional. Por favor, revisa los documentos solicitados.',
+                  actionText: 'Subir documentos',
+                  actionIcon: Icons.upload_file,
+                  isActive: _status == 'REQUIERE_CAMBIOS' || _status == 'REGISTRO_INCOMPLETO',
+                  isDark: isDark,
+                  onAction: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PsychologistProfileFormScreen(
+                          onFormSubmitted: _fetchStatus,
                         ),
-                      )
-                    : _buildHistoryTimeline(isDark),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // Card 3: Cuenta Suspendida (Suspended)
+                _buildVerificationCard(
+                  borderColor: AppTheme.error,
+                  iconBg: AppTheme.error.withValues(alpha: 0.15),
+                  iconColor: AppTheme.error,
+                  icon: Icons.block,
+                  title: 'Cuenta Suspendida',
+                  description:
+                      'Tu cuenta profesional se encuentra temporalmente suspendida. Contacta a soporte para más información y resolución del estado.',
+                  actionText: 'Contactar soporte',
+                  actionIcon: Icons.support_agent,
+                  isActive: _status == 'SUSPENDIDO',
+                  isDark: isDark,
+                  onAction: _showSupportDialog,
+                ),
+                const SizedBox(height: 24),
+
+                // Historial Timeline Section
+                if (_history.isNotEmpty) ...[
+                  Text(
+                    'Historial de Auditoría',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ..._history.map((log) {
+                    final toStatus = log['toStatus'] ?? 'ESTADO';
+                    final dateStr = log['changedAt'] != null
+                        ? DateTime.parse(log['changedAt']).toLocal().toString().substring(0, 16)
+                        : '';
+                    final comment = log['comment'] ?? 'Sin observaciones';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.cardDark : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(toStatus, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              Text(dateStr, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(comment, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight)),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
               ],
             ),
           ),
@@ -134,205 +308,139 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
     );
   }
 
-  Widget _buildStatusCard(bool isDark) {
-    Color cardColor;
-    Color textColor;
-    String statusTitle;
-    String statusDesc;
-    IconData icon;
-    bool showActionBtn = false;
-
-    switch (_status) {
-      case 'VERIFICADO':
-        cardColor = Colors.green;
-        textColor = Colors.green;
-        statusTitle = 'Perfil Verificado';
-        statusDesc = '¡Felicidades! Tu perfil profesional ha sido validado correctamente. Ya apareces en el directorio y puedes agendar consultas.';
-        icon = Icons.verified_user_outlined;
-        break;
-      case 'REQUIERE_CAMBIOS':
-        cardColor = Colors.amber;
-        textColor = Colors.amber;
-        statusTitle = 'Correcciones Requeridas';
-        statusDesc = 'El administrador ha revisado tu perfil y solicitó cambios. Por favor revisa los comentarios del historial abajo y vuelve a subir los documentos.';
-        icon = Icons.edit_attributes_outlined;
-        showActionBtn = true;
-        break;
-      case 'RECHAZADO':
-        cardColor = Colors.redAccent;
-        textColor = Colors.redAccent;
-        statusTitle = 'Solicitud Rechazada';
-        statusDesc = 'Lamentamos informarte que tu solicitud fue rechazada debido a inconsistencias en tus documentos de cédula o título.';
-        icon = Icons.cancel_outlined;
-        break;
-      case 'PENDIENTE_REVISION':
-      case 'EN_REVISION':
-        cardColor = Colors.amber;
-        textColor = Colors.amber;
-        statusTitle = 'En Revisión';
-        statusDesc = 'Tu expediente profesional se encuentra en proceso de validación. La revisión manual toma habitualmente entre 24 y 48 horas hábiles.';
-        icon = Icons.hourglass_empty;
-        break;
-      case 'SUSPENDIDO':
-        cardColor = Colors.red;
-        textColor = Colors.red;
-        statusTitle = 'Perfil Suspendido';
-        statusDesc = 'Tu cuenta profesional se encuentra temporalmente suspendida debido a políticas del servicio.';
-        icon = Icons.block;
-        break;
-      case 'REGISTRO_INCOMPLETO':
-      default:
-        cardColor = Colors.grey;
-        textColor = Colors.grey;
-        statusTitle = 'Registro Incompleto';
-        statusDesc = 'Aún no completas tu captura de información y carga de documentos de identidad.';
-        icon = Icons.edit_note_outlined;
-        showActionBtn = true;
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
+  Widget _buildVerificationCard({
+    required Color borderColor,
+    required Color iconBg,
+    required Color iconColor,
+    required IconData icon,
+    required String title,
+    required String description,
+    required String actionText,
+    required IconData actionIcon,
+    required bool isActive,
+    required bool isDark,
+    required VoidCallback onAction,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: textColor.withOpacity(0.3),
-          width: 1.5,
+        borderRadius: BorderRadius.circular(16),
+        border: Border(
+          left: BorderSide(color: borderColor, width: isActive ? 6 : 4),
+          top: BorderSide(
+            color: isActive ? borderColor.withValues(alpha: 0.5) : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
+          ),
+          right: BorderSide(
+            color: isActive ? borderColor.withValues(alpha: 0.5) : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
+          ),
+          bottom: BorderSide(
+            color: isActive ? borderColor.withValues(alpha: 0.5) : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
+          ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: textColor.withOpacity(0.05),
-            blurRadius: 15,
-            spreadRadius: 2,
-          ),
-        ],
+        boxShadow: isActive
+            ? [
+                BoxShadow(
+                  color: borderColor.withValues(alpha: 0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: textColor.withOpacity(0.1),
-              shape: BoxShape.circle,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: iconBg,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 24),
             ),
-            child: Icon(icon, color: textColor, size: 48),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            statusTitle,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            statusDesc,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.4,
-            ),
-          ),
-          if (showActionBtn) ...[
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => PsychologistProfileFormScreen(
-                      onFormSubmitted: _fetchStatus,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                          ),
+                        ),
+                      ),
+                      if (isActive)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: borderColor.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'ACTUAL',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: borderColor,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
                     ),
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: AppTheme.bgDark,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                _status == 'REGISTRO_INCOMPLETO' ? 'Completar Perfil' : 'Corregir Documentos',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: onAction,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            actionText,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: borderColor,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(actionIcon, size: 16, color: borderColor),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ],
+        ),
       ),
-    );
-  }
-
-  Widget _buildHistoryTimeline(bool isDark) {
-    return Column(
-      children: _history.map((log) {
-        final toStatus = log['toStatus'];
-        final dateStr = DateTime.parse(log['changedAt']).toLocal().toString().substring(0, 16);
-        final comment = log['comment'] ?? 'Sin observaciones escritas';
-        final revisorName = log['changedBy']?['name'] ?? 'Sistema';
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 4, right: 12),
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: AppTheme.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppTheme.cardDark : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark ? AppTheme.borderSubtleDark : AppTheme.borderSubtleLight,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            toStatus,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
-                          Text(
-                            dateStr,
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        comment,
-                        style: const TextStyle(fontSize: 12, height: 1.3),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Revisado por: $revisorName',
-                        style: const TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
     );
   }
 }

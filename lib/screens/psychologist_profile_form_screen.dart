@@ -4,9 +4,9 @@ import '../theme/app_theme.dart';
 import 'document_upload_widget.dart';
 
 class PsychologistProfileFormScreen extends StatefulWidget {
-  final VoidCallback onFormSubmitted;
+  final VoidCallback? onFormSubmitted;
 
-  const PsychologistProfileFormScreen({super.key, required this.onFormSubmitted});
+  const PsychologistProfileFormScreen({super.key, this.onFormSubmitted});
 
   @override
   State<PsychologistProfileFormScreen> createState() => _PsychologistProfileFormScreenState();
@@ -166,7 +166,7 @@ class _PsychologistProfileFormScreenState extends State<PsychologistProfileFormS
       });
 
       if (result['success'] == true) {
-        widget.onFormSubmitted(); // Reload app state
+        widget.onFormSubmitted?.call(); // Reload app state
         Navigator.of(context).pop(); // Go back to ApplicationStatusScreen
       } else {
         setState(() {

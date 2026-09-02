@@ -7,6 +7,7 @@ import 'screens/profile_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
 import 'screens/application_status_screen.dart';
+import 'screens/psychologist/psychologist_main_layout.dart';
 
 void main() {
   runApp(const MyApp());
@@ -20,14 +21,11 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode =
-      ThemeMode.dark; // Default to dark mode as it highlights the premium look
+  ThemeMode _themeMode = ThemeMode.dark; // Default to dark mode for modern aesthetic
 
   void _toggleTheme() {
     setState(() {
-      _themeMode = _themeMode == ThemeMode.dark
-          ? ThemeMode.light
-          : ThemeMode.dark;
+      _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     });
   }
 
@@ -66,8 +64,7 @@ class _AppRootState extends State<AppRoot> {
   bool _isLoading = true;
   bool _isAuthenticated = false;
   Map<String, dynamic>? _currentUser;
-  int _currentNavIndex =
-      0; // 0 = Home, 1 = Explore/Directory, 2 = Community, 3 = Profile
+  int _currentNavIndex = 0; // 0 = Home, 1 = Explore/Directory, 2 = Community, 3 = Profile
   Psychologist? _selectedPsychologist;
 
   @override
@@ -84,7 +81,7 @@ class _AppRootState extends State<AppRoot> {
       if (result['success'] == true) {
         if (mounted) {
           setState(() {
-            _currentUser = result['data'];
+            _currentUser = result['user'] ?? result['data'];
             _isAuthenticated = true;
             _showOnboarding = false;
             _isLoading = false;
@@ -98,6 +95,18 @@ class _AppRootState extends State<AppRoot> {
         _isAuthenticated = false;
         _showOnboarding = true;
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    await AuthService().logout();
+    if (mounted) {
+      setState(() {
+        _isAuthenticated = false;
+        _showOnboarding = true;
+        _currentUser = null;
+        _currentNavIndex = 0;
       });
     }
   }
@@ -120,19 +129,28 @@ class _AppRootState extends State<AppRoot> {
       );
     }
 
-    final roles = List<String>.from(_currentUser?['roles'] ?? []);
+    final roles = List<String>.from(_currentUser?['roles'] ?? ['USER']);
+
+    // Route 1: Psychologist Applicant (under verification review)
     if (roles.contains('PSYCHOLOGIST_APPLICANT')) {
       return ApplicationStatusScreen(
-        onLogout: () async {
-          await AuthService().logout();
-          _checkAuthStatus();
-        },
+        onLogout: _handleLogout,
       );
     }
 
+    // Route 2: Verified Psychologist (5 bottom sections: Inicio, Agenda, Consultas, Community, Perfil)
+    if (roles.contains('PSYCHOLOGIST') || roles.contains('PSYCHOLOGIST_VERIFIED')) {
+      return PsychologistMainLayout(
+        onLogout: _handleLogout,
+        onToggleTheme: widget.onToggleTheme,
+        isDarkMode: widget.isDarkMode,
+        userProfile: _currentUser,
+      );
+    }
+
+    // Route 3: Standard User Flow (Home, Explore, Community, Profile)
     final isDark = widget.isDarkMode;
 
-    // Core screens matching bottom nav
     final List<Widget> screens = [
       HomeScreen(
         onNavigateToDirectory: () {
@@ -161,7 +179,7 @@ class _AppRootState extends State<AppRoot> {
           // Current Main Tab
           IndexedStack(index: _currentNavIndex, children: screens),
 
-          // Detailed Psychologist Profile Page Overlay (Slide transition)
+          // Detailed Psychologist Profile Page Overlay
           if (_selectedPsychologist != null)
             Positioned.fill(
               child: Container(
@@ -179,7 +197,7 @@ class _AppRootState extends State<AppRoot> {
         ],
       ),
 
-      // Global Bottom Navigation Bar
+      // Global Bottom Navigation Bar for Users
       bottomNavigationBar: _selectedPsychologist == null
           ? Container(
               decoration: BoxDecoration(
@@ -195,13 +213,10 @@ class _AppRootState extends State<AppRoot> {
                 onTap: (index) {
                   setState(() {
                     _currentNavIndex = index;
-                    _selectedPsychologist =
-                        null; // Clear selection when changing tabs
+                    _selectedPsychologist = null;
                   });
                 },
-                backgroundColor: isDark
-                    ? const Color(0xFF0F172A)
-                    : Colors.white,
+                backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
                 selectedItemColor: AppTheme.primary,
                 unselectedItemColor: Colors.grey,
                 type: BottomNavigationBarType.fixed,
@@ -241,7 +256,7 @@ class _AppRootState extends State<AppRoot> {
     );
   }
 
-  // Premium Dummy Community Screen
+  // User Community Screen
   Widget _buildCommunityScreen(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -263,7 +278,6 @@ class _AppRootState extends State<AppRoot> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome Card with Gradient
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -289,7 +303,7 @@ class _AppRootState extends State<AppRoot> {
                   Text(
                     'Share your feelings, read supportive stories, and find comfort in a fully anonymous peer-to-peer network.',
                     style: TextStyle(
-                      color: AppTheme.bgDark.withOpacity(0.8),
+                      color: AppTheme.bgDark.withValues(alpha: 0.8),
                       fontSize: 13,
                       height: 1.4,
                     ),
@@ -298,17 +312,11 @@ class _AppRootState extends State<AppRoot> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // Subtitle
             Text(
               'Trending Topics',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-
-            // Topic Card 1
             _buildTopicCard(
               context,
               'Anxiety coping techniques that actually work',
@@ -317,7 +325,6 @@ class _AppRootState extends State<AppRoot> {
               Icons.healing,
               isDark,
             ),
-            // Topic Card 2
             _buildTopicCard(
               context,
               'Morning routine checklist for mindfulness',
@@ -326,7 +333,6 @@ class _AppRootState extends State<AppRoot> {
               Icons.wb_sunny_outlined,
               isDark,
             ),
-            // Topic Card 3
             _buildTopicCard(
               context,
               'Overcoming imposter syndrome at work',
@@ -356,9 +362,7 @@ class _AppRootState extends State<AppRoot> {
         color: isDark ? AppTheme.cardDark : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark
-              ? AppTheme.borderSubtleDark
-              : AppTheme.borderSubtleLight,
+          color: isDark ? AppTheme.borderSubtleDark : AppTheme.borderSubtleLight,
         ),
       ),
       child: Row(
@@ -367,7 +371,7 @@ class _AppRootState extends State<AppRoot> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.1),
+              color: AppTheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: AppTheme.primary, size: 24),
@@ -378,12 +382,9 @@ class _AppRootState extends State<AppRoot> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.1),
+                    color: AppTheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -417,7 +418,6 @@ class _AppRootState extends State<AppRoot> {
     );
   }
 
-  // Premium Dummy User Profile Screen
   Widget _buildUserProfileScreen(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -438,7 +438,6 @@ class _AppRootState extends State<AppRoot> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // User Avatar Section
             const SizedBox(height: 12),
             Container(
               width: 100,
@@ -463,14 +462,11 @@ class _AppRootState extends State<AppRoot> {
               _currentUser?['email'] ?? 'Member since Oct 2025',
               style: TextStyle(
                 fontSize: 13,
-                color: isDark
-                    ? AppTheme.textSecondaryDark
-                    : AppTheme.textSecondaryLight,
+                color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
               ),
             ),
             const SizedBox(height: 24),
 
-            // Statistics Card Row
             Row(
               children: [
                 _buildProfileStatCard('Mood Check-ins', '18', isDark),
@@ -482,39 +478,15 @@ class _AppRootState extends State<AppRoot> {
             ),
             const SizedBox(height: 24),
 
-            // Settings Items List
-            _buildSettingTile(
-              Icons.shield_outlined,
-              'Privacy & Safety',
-              isDark,
-            ),
-            _buildSettingTile(
-              Icons.notifications_none_outlined,
-              'Notification Settings',
-              isDark,
-            ),
-            _buildSettingTile(
-              Icons.payment_outlined,
-              'Subscription & Billing',
-              isDark,
-            ),
+            _buildSettingTile(Icons.shield_outlined, 'Privacy & Safety', isDark),
+            _buildSettingTile(Icons.notifications_none_outlined, 'Notification Settings', isDark),
+            _buildSettingTile(Icons.payment_outlined, 'Subscription & Billing', isDark),
             _buildSettingTile(Icons.help_outline, 'Help & Support', isDark),
 
             const SizedBox(height: 20),
 
-            // Log Out Button
             TextButton(
-              onPressed: () async {
-                await AuthService().logout();
-                if (mounted) {
-                  setState(() {
-                    _isAuthenticated = false;
-                    _showOnboarding = true;
-                    _currentUser = null;
-                    _currentNavIndex = 0;
-                  });
-                }
-              },
+              onPressed: _handleLogout,
               child: const Text(
                 'Sign Out',
                 style: TextStyle(
@@ -574,9 +546,7 @@ class _AppRootState extends State<AppRoot> {
         color: isDark ? AppTheme.cardDark : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDark
-              ? AppTheme.borderSubtleDark
-              : AppTheme.borderSubtleLight,
+          color: isDark ? AppTheme.borderSubtleDark : AppTheme.borderSubtleLight,
         ),
       ),
       child: ListTile(
