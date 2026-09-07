@@ -365,11 +365,8 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                                   decoration: BoxDecoration(
                                     color: isDark ? AppTheme.cardDark : Colors.white,
                                     borderRadius: BorderRadius.circular(16),
-                                    border: Border(
-                                      left: BorderSide(color: statusColor, width: 4),
-                                      top: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-                                      right: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-                                      bottom: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                                    border: Border.all(
+                                      color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
                                     ),
                                   ),
                                   child: Column(
@@ -383,23 +380,40 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                                             Row(
                                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                               children: [
-                                                Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    const Text(
-                                                      'PACIENTE',
-                                                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey),
-                                                    ),
-                                                    const SizedBox(height: 2),
-                                                    Text(
-                                                      patientName,
-                                                      style: TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                                                Expanded(
+                                                  child: Row(
+                                                    children: [
+                                                      Container(
+                                                        width: 4,
+                                                        height: 36,
+                                                        margin: const EdgeInsets.only(right: 10),
+                                                        decoration: BoxDecoration(
+                                                          color: statusColor,
+                                                          borderRadius: BorderRadius.circular(2),
+                                                        ),
                                                       ),
-                                                    ),
-                                                  ],
+                                                      Expanded(
+                                                        child: Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            const Text(
+                                                              'PACIENTE',
+                                                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey),
+                                                            ),
+                                                            const SizedBox(height: 2),
+                                                            Text(
+                                                              patientName,
+                                                              style: TextStyle(
+                                                                fontSize: 16,
+                                                                fontWeight: FontWeight.bold,
+                                                                color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

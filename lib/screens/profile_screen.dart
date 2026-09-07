@@ -571,11 +571,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: BoxDecoration(
                 color: isDark ? AppTheme.bgDark.withOpacity(0.8) : Colors.white.withOpacity(0.85),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                border: Border(
-                  top: BorderSide(
-                    color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
-                    width: 0.5,
-                  ),
+                border: Border.all(
+                  color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                  width: 0.5,
                 ),
               ),
               child: ElevatedButton(

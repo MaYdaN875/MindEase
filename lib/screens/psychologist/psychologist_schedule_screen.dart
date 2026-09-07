@@ -487,14 +487,8 @@ class _PsychologistScheduleScreenState extends State<PsychologistScheduleScreen>
               decoration: BoxDecoration(
                 color: isDark ? AppTheme.cardDark : Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border(
-                  left: BorderSide(
-                    color: hasSlots ? AppTheme.primary : (isDark ? AppTheme.borderDark : Colors.grey.shade300),
-                    width: 4,
-                  ),
-                  top: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-                  right: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-                  bottom: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                border: Border.all(
+                  color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
                 ),
               ),
               child: Column(
@@ -503,13 +497,26 @@ class _PsychologistScheduleScreenState extends State<PsychologistScheduleScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        dayName,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? AppTheme.textLight : AppTheme.textDark,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 20,
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: hasSlots ? AppTheme.primary : (isDark ? AppTheme.borderDark : Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          Text(
+                            dayName,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                            ),
+                          ),
+                        ],
                       ),
                       if (!hasSlots)
                         const Text(

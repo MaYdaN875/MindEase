@@ -177,4 +177,29 @@ class PsychologistService {
       return {'success': false, 'message': 'Error de conexión: $e'};
     }
   }
+
+  // GET /api/psychologists/me/dashboard
+  Future<Map<String, dynamic>> getDashboardData() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/psychologists/me/dashboard'),
+        headers: headers,
+      );
+
+      final data = _parseResponse(response);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return {
+          'success': true,
+          'data': data['data'],
+        };
+      }
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Error al cargar datos del dashboard',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    }
+  }
 }

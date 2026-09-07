@@ -326,17 +326,9 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppTheme.cardDark : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border(
-          left: BorderSide(color: borderColor, width: isActive ? 6 : 4),
-          top: BorderSide(
-            color: isActive ? borderColor.withValues(alpha: 0.5) : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
-          ),
-          right: BorderSide(
-            color: isActive ? borderColor.withValues(alpha: 0.5) : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
-          ),
-          bottom: BorderSide(
-            color: isActive ? borderColor.withValues(alpha: 0.5) : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
-          ),
+        border: Border.all(
+          color: isActive ? borderColor : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
+          width: isActive ? 1.5 : 1,
         ),
         boxShadow: isActive
             ? [
@@ -359,6 +351,17 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (isActive) ...[
+              Container(
+                width: 4,
+                height: 44,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  color: borderColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
             Container(
               width: 44,
               height: 44,

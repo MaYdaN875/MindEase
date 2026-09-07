@@ -145,19 +145,24 @@ class _PsychologistNotificationsScreenState extends State<PsychologistNotificati
                           decoration: BoxDecoration(
                             color: isDark ? AppTheme.cardDark : Colors.white,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border(
-                              left: BorderSide(
-                                color: isUnread ? AppTheme.primary : Colors.transparent,
-                                width: 4,
-                              ),
-                              top: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-                              right: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-                              bottom: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                            border: Border.all(
+                              color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
                             ),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              if (isUnread) ...[
+                                Container(
+                                  width: 4,
+                                  height: 40,
+                                  margin: const EdgeInsets.only(right: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primary,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ],
                               Container(
                                 width: 40,
                                 height: 40,
