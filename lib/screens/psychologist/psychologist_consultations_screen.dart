@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/appointment_service.dart';
 import '../../theme/app_theme.dart';
 
 class PsychologistConsultationsScreen extends StatefulWidget {
@@ -18,10 +19,76 @@ class PsychologistConsultationsScreen extends StatefulWidget {
 }
 
 class _PsychologistConsultationsScreenState extends State<PsychologistConsultationsScreen> {
+  final AppointmentService _appointmentService = AppointmentService();
+
   String _selectedFilter = 'Próximas';
   final List<String> _filters = ['Próximas', 'En curso', 'Finalizadas', 'Canceladas'];
 
-  void _showConsultationDetails(String patientName, String time, String type, String status) {
+  bool _isLoading = true;
+  List<dynamic> _appointments = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAppointments();
+  }
+
+  Future<void> _fetchAppointments() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final res = await _appointmentService.getMyAppointments(asRole: 'psychologist');
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        if (res['success'] == true) {
+          _appointments = res['data'] ?? [];
+        }
+      });
+    }
+  }
+
+  Future<void> _updateStatus(String appointmentId, String newStatus, {String? reason}) async {
+    final res = await _appointmentService.updateAppointmentStatus(
+      appointmentId,
+      newStatus,
+      cancellationReason: reason,
+    );
+
+    if (mounted) {
+      if (res['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message'] ?? 'Estado de la cita actualizado.'),
+            backgroundColor: AppTheme.primaryDark,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        _fetchAppointments();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message'] ?? 'Error al actualizar estado.'),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showConsultationDetails(dynamic appt) {
+    final patientName = appt['user']?['name'] ?? 'Paciente';
+    final startAtStr = appt['startAt'];
+    final startAt = startAtStr != null ? DateTime.parse(startAtStr).toLocal() : null;
+    final timeFormatted = startAt != null
+        ? '${startAt.day}/${startAt.month}/${startAt.year} a las ${startAt.hour.toString().padLeft(2, '0')}:${startAt.minute.toString().padLeft(2, '0')}'
+        : 'Sin fecha';
+    final status = appt['status'] ?? 'CONFIRMED';
+    final apptId = appt['id'];
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -82,10 +149,10 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
                   backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
-                  child: Text(patientName.substring(0, 1), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(patientName.substring(0, 1).toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
                 title: Text(patientName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('Horario: $time • Modalidad: $type'),
+                subtitle: Text('Horario: $timeFormatted • Videollamada'),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -94,27 +161,41 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
               ),
               const SizedBox(height: 4),
               Text(
-                'Seguimiento semanal de manejo de estrés laboral y técnicas de respiración profunda.',
+                'Seguimiento y apoyo psicológico personalizado.',
                 style: TextStyle(
                   fontSize: 13,
                   color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
                 ),
               ),
               const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _enterConsultation(patientName);
-                },
-                icon: const Icon(Icons.video_call),
-                label: const Text('Entrar a Sala de Consulta', style: TextStyle(fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: AppTheme.textDark,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              if (status == 'CONFIRMED' || status == 'PENDING') ...[
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _enterConsultation(patientName);
+                  },
+                  icon: const Icon(Icons.video_call),
+                  label: const Text('Entrar a Sala de Consulta', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: AppTheme.textDark,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _updateStatus(apptId, 'CANCELLED', reason: 'Cancelada por el profesional');
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.error,
+                    side: const BorderSide(color: AppTheme.error),
+                  ),
+                  child: const Text('Cancelar Cita'),
+                ),
+              ],
               const SizedBox(height: 8),
             ],
           ),
@@ -137,6 +218,20 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final filteredAppointments = _appointments.where((appt) {
+      final status = (appt['status'] as String?)?.toUpperCase() ?? 'CONFIRMED';
+      if (_selectedFilter == 'Próximas') {
+        return status == 'CONFIRMED' || status == 'PENDING';
+      } else if (_selectedFilter == 'En curso') {
+        return status == 'IN_PROGRESS' || status == 'CONFIRMED';
+      } else if (_selectedFilter == 'Finalizadas') {
+        return status == 'COMPLETED';
+      } else if (_selectedFilter == 'Canceladas') {
+        return status == 'CANCELLED';
+      }
+      return true;
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Consultas Clínicas'),
@@ -156,288 +251,230 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Page Header & Filtering
-              Text(
-                'Gestión de Consultas',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? AppTheme.textLight : AppTheme.textDark,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Filter Tabs Scrollable
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child: Row(
-                  children: _filters.map((filter) {
-                    final isSelected = _selectedFilter == filter;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ChoiceChip(
-                        label: Text(
-                          filter,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected
-                                ? AppTheme.textDark
-                                : (isDark ? AppTheme.textSecondaryDark : AppTheme.textMediumLight),
-                          ),
-                        ),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          if (selected) setState(() => _selectedFilter = filter);
-                        },
-                        selectedColor: AppTheme.primary,
-                        backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
-                        side: BorderSide(
-                          color: isSelected
-                              ? AppTheme.primary
-                              : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
-                        ),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        showCheckmark: false,
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Consultations List
-              if (_selectedFilter == 'Próximas' || _selectedFilter == 'En curso') ...[
-                // Card 1: Today, Upcoming
-                _buildConsultationCard(
-                  patientName: 'Robert Smith',
-                  time: 'Hoy 11:30 AM',
-                  type: 'Chat Privado',
-                  status: 'Confirmada',
-                  statusColor: AppTheme.primary,
-                  isToday: true,
-                  isDark: isDark,
-                  onEnter: () => _enterConsultation('Robert Smith'),
-                  onViewDetails: () => _showConsultationDetails('Robert Smith', 'Hoy 11:30 AM', 'Chat Privado', 'Confirmada'),
-                ),
-                const SizedBox(height: 14),
-
-                // Card 2: Tomorrow
-                _buildConsultationCard(
-                  patientName: 'Sarah Connor',
-                  time: 'Mañana 09:00 AM',
-                  type: 'Videollamada',
-                  status: 'Pendiente',
-                  statusColor: AppTheme.tertiaryFixedDim,
-                  isToday: false,
-                  isDark: isDark,
-                  onEnter: () => _enterConsultation('Sarah Connor'),
-                  onViewDetails: () => _showConsultationDetails('Sarah Connor', 'Mañana 09:00 AM', 'Videollamada', 'Pendiente'),
-                ),
-              ] else if (_selectedFilter == 'Finalizadas') ...[
-                _buildConsultationCard(
-                  patientName: 'David Wilson',
-                  time: 'Ayer 04:00 PM',
-                  type: 'Videollamada',
-                  status: 'Completada',
-                  statusColor: Colors.green,
-                  isToday: false,
-                  isDark: isDark,
-                  onEnter: () {},
-                  onViewDetails: () => _showConsultationDetails('David Wilson', 'Ayer 04:00 PM', 'Videollamada', 'Completada'),
-                ),
-              ] else ...[
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40.0),
-                    child: Column(
-                      children: [
-                        Icon(Icons.event_busy, size: 48, color: Colors.grey.withValues(alpha: 0.5)),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No hay consultas en esta sección',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
-                          ),
-                        ),
-                      ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Gestión de Consultas',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? AppTheme.textLight : AppTheme.textDark,
                     ),
                   ),
-                ),
-              ],
-              const SizedBox(height: 30),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildConsultationCard({
-    required String patientName,
-    required String time,
-    required String type,
-    required String status,
-    required Color statusColor,
-    required bool isToday,
-    required bool isDark,
-    required VoidCallback onEnter,
-    required VoidCallback onViewDetails,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border(
-          left: BorderSide(color: statusColor, width: 4),
-          top: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-          right: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-          bottom: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Paciente'.toUpperCase(),
-                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          patientName,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? AppTheme.textLight : AppTheme.textDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.check_circle_outline, size: 12, color: statusColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            status,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: statusColor,
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: _filters.map((filter) {
+                        final isSelected = _selectedFilter == filter;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: Text(
+                              filter,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected
+                                    ? AppTheme.textDark
+                                    : (isDark ? AppTheme.textSecondaryDark : AppTheme.textMediumLight),
+                              ),
                             ),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected) setState(() => _selectedFilter = filter);
+                            },
+                            selectedColor: AppTheme.primary,
+                            backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
+                            side: BorderSide(
+                              color: isSelected
+                                  ? AppTheme.primary
+                                  : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            showCheckmark: false,
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 14, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
-                        const SizedBox(width: 4),
-                        Text(
-                          time,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-                    Row(
-                      children: [
-                        Icon(
-                          type == 'Videollamada' ? Icons.videocam : Icons.chat_bubble_outline,
-                          size: 14,
-                          color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          type,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Divider(height: 1, color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Consulta cancelada'), behavior: SnackBarBehavior.floating),
-                    );
-                  },
-                  child: const Text('Cancelar', style: TextStyle(color: AppTheme.error, fontSize: 12)),
-                ),
-                TextButton(
-                  onPressed: onViewDetails,
-                  child: const Text('Ver detalles', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
-                ),
-                if (isToday) ...[
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: onEnter,
-                    icon: const Icon(Icons.arrow_forward, size: 14),
-                    label: const Text('Entrar a consulta', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: AppTheme.textDark,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        );
+                      }).toList(),
                     ),
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+                  : RefreshIndicator(
+                      onRefresh: _fetchAppointments,
+                      color: AppTheme.primary,
+                      child: filteredAppointments.isEmpty
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 60.0),
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.event_busy, size: 48, color: Colors.grey.withValues(alpha: 0.5)),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'No hay consultas en la categoría "$_selectedFilter"',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                              itemCount: filteredAppointments.length,
+                              itemBuilder: (context, index) {
+                                final appt = filteredAppointments[index];
+                                final patientName = appt['user']?['name'] ?? 'Paciente';
+                                final startAtStr = appt['startAt'];
+                                final startAt = startAtStr != null ? DateTime.parse(startAtStr).toLocal() : null;
+                                final timeStr = startAt != null
+                                    ? '${startAt.day}/${startAt.month}/${startAt.year} • ${startAt.hour.toString().padLeft(2, '0')}:${startAt.minute.toString().padLeft(2, '0')} hrs'
+                                    : 'Sin fecha';
+                                final status = appt['status'] ?? 'CONFIRMED';
+                                final apptId = appt['id'];
+
+                                Color statusColor = AppTheme.primary;
+                                if (status == 'CANCELLED') {
+                                  statusColor = AppTheme.error;
+                                } else if (status == 'COMPLETED') {
+                                  statusColor = Colors.green;
+                                } else if (status == 'PENDING') {
+                                  statusColor = AppTheme.tertiaryFixedDim;
+                                }
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 14),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? AppTheme.cardDark : Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border(
+                                      left: BorderSide(color: statusColor, width: 4),
+                                      top: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                                      right: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                                      bottom: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text(
+                                                      'PACIENTE',
+                                                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      patientName,
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: statusColor.withValues(alpha: 0.15),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Text(
+                                                    status,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: statusColor,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.calendar_today, size: 14, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                                                const SizedBox(width: 4),
+                                                Text(timeStr, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight)),
+                                                const SizedBox(width: 14),
+                                                Icon(Icons.videocam, size: 14, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                                                const SizedBox(width: 4),
+                                                Text('Videollamada', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight)),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Divider(height: 1, color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          children: [
+                                            if (status == 'CONFIRMED' || status == 'PENDING') ...[
+                                              TextButton(
+                                                onPressed: () => _updateStatus(apptId, 'CANCELLED', reason: 'Cancelada por el profesional'),
+                                                child: const Text('Cancelar', style: TextStyle(color: AppTheme.error, fontSize: 12)),
+                                              ),
+                                            ],
+                                            TextButton(
+                                              onPressed: () => _showConsultationDetails(appt),
+                                              child: const Text('Ver detalles', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                                            ),
+                                            if (status == 'CONFIRMED') ...[
+                                              const SizedBox(width: 8),
+                                              ElevatedButton.icon(
+                                                onPressed: () => _enterConsultation(patientName),
+                                                icon: const Icon(Icons.arrow_forward, size: 14),
+                                                label: const Text('Entrar a consulta', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: AppTheme.primary,
+                                                  foregroundColor: AppTheme.textDark,
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

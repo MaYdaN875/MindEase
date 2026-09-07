@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/psychologist.dart';
+import '../services/psychologist_service.dart';
 import '../theme/app_theme.dart';
 
 class DirectoryScreen extends StatefulWidget {
@@ -16,6 +17,8 @@ class DirectoryScreen extends StatefulWidget {
 
 class _DirectoryScreenState extends State<DirectoryScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final PsychologistService _psychologistService = PsychologistService();
+
   String _selectedCategory = 'All';
   List<Psychologist> _allPsychologists = [];
   List<Psychologist> _filteredPsychologists = [];
@@ -34,6 +37,51 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
     _allPsychologists = Psychologist.list;
     _filteredPsychologists = _allPsychologists;
     _searchController.addListener(_applyFilters);
+    _loadBackendPsychologists();
+  }
+
+  Future<void> _loadBackendPsychologists() async {
+    final res = await _psychologistService.getVerifiedPsychologists();
+    if (res['success'] == true && mounted) {
+      final List<dynamic> list = res['data'];
+      if (list.isNotEmpty) {
+        final List<Psychologist> fetched = list.map((item) {
+          final user = item['user'] ?? {};
+          final specialtiesList = (item['specialties'] as List<dynamic>?)
+                  ?.map((s) => s['specialty']?['name']?.toString() ?? '')
+                  .where((s) => s.isNotEmpty)
+                  .toList() ??
+              ['Psicología Clínica'];
+
+          return Psychologist(
+            id: item['id'] ?? user['id'] ?? 'doc',
+            name: user['name'] ?? 'Psicólogo Verificado',
+            title: item['academicBackground'] ?? 'Psicólogo Clínico',
+            imageUrl: item['photoUrl'] ??
+                'https://lh3.googleusercontent.com/aida-public/AB6AXuBVs8tIfuOwuiiM-Jm-RNLgqdr8y0XfiRuGHeVo2ftxGEBO3ELLyb399uhfqzzNCY6cFQbCw6_XflUCBZQxmXV9XUuQuFlNJRv4G930tsKTwqHY9YhTaBxMCgjwlpZnX0vn3JxLr0W8eRACOBZZCnyM9qyHdeZ4hrKp38VF7ezCzcfqITwxmviFLDSnDMDfaXPu_cMZ7EQYa5r1TDfPPLjGUN8wcewpo7vnMM-EuiyfrvReGwfyR-AWmw',
+            profileImageUrl: item['photoUrl'] ??
+                'https://lh3.googleusercontent.com/aida-public/AB6AXuBVs8tIfuOwuiiM-Jm-RNLgqdr8y0XfiRuGHeVo2ftxGEBO3ELLyb399uhfqzzNCY6cFQbCw6_XflUCBZQxmXV9XUuQuFlNJRv4G930tsKTwqHY9YhTaBxMCgjwlpZnX0vn3JxLr0W8eRACOBZZCnyM9qyHdeZ4hrKp38VF7ezCzcfqITwxmviFLDSnDMDfaXPu_cMZ7EQYa5r1TDfPPLjGUN8wcewpo7vnMM-EuiyfrvReGwfyR-AWmw',
+            rating: 5.0,
+            reviewsCount: 24,
+            durationMinutes: 50,
+            pricePerSession: (item['consultationPrice'] as num?)?.toInt() ?? 350,
+            patients: '150+',
+            experience: item['experience'] ?? '5 años',
+            languages: item['languages'] ?? 'Español',
+            about: item['description'] ?? 'Especialista en apoyo psicológico personalizado.',
+            specialties: specialtiesList,
+            reviews: [],
+            isVerified: true,
+          );
+        }).toList();
+
+        setState(() {
+          // Merge backend psychologists at top
+          _allPsychologists = [...fetched, ...Psychologist.list];
+          _applyFilters();
+        });
+      }
+    }
   }
 
   @override

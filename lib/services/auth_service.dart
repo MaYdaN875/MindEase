@@ -45,6 +45,28 @@ class AuthService {
     await prefs.remove(_tokenKey);
   }
 
+  Map<String, dynamic> _parseResponse(http.Response response) {
+    try {
+      final body = response.body.trim();
+      if (body.startsWith('<!DOCTYPE') || body.startsWith('<html') || body.startsWith('<pre')) {
+        return {
+          'status': 'error',
+          'message': 'El servidor backend devolvió una página HTML en lugar de JSON (HTTP ${response.statusCode}).',
+        };
+      }
+      final data = jsonDecode(body);
+      if (data is Map<String, dynamic>) {
+        return data;
+      }
+      return {'status': 'error', 'message': 'Respuesta no válida del servidor'};
+    } catch (e) {
+      return {
+        'status': 'error',
+        'message': 'Error al procesar respuesta del servidor (HTTP ${response.statusCode}): $e',
+      };
+    }
+  }
+
   // Login
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
@@ -54,7 +76,7 @@ class AuthService {
         body: jsonEncode({'email': email, 'password': password}),
       );
 
-      final data = jsonDecode(response.body);
+      final data = _parseResponse(response);
       if (response.statusCode == 200 && data['status'] == 'success') {
         final token = data['data']['token'];
         await saveToken(token);
@@ -90,7 +112,7 @@ class AuthService {
         }),
       );
 
-      final data = jsonDecode(response.body);
+      final data = _parseResponse(response);
       if (response.statusCode == 201 && data['status'] == 'success') {
         final token = data['data']['token'];
         await saveToken(token);
@@ -119,7 +141,7 @@ class AuthService {
         },
       );
 
-      final data = jsonDecode(response.body);
+      final data = _parseResponse(response);
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true, 'data': data['data']['user']};
       } else {
@@ -154,7 +176,7 @@ class AuthService {
         },
       );
 
-      final data = jsonDecode(response.body);
+      final data = _parseResponse(response);
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true, 'data': data['data']['profile']};
       } else {
@@ -180,7 +202,7 @@ class AuthService {
         body: jsonEncode(fields),
       );
 
-      final data = jsonDecode(response.body);
+      final data = _parseResponse(response);
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true, 'data': data['data']['profile']};
       } else {
@@ -209,7 +231,7 @@ class AuthService {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      final data = jsonDecode(response.body);
+      final data = _parseResponse(response);
       if (response.statusCode == 201 && data['status'] == 'success') {
         return {'success': true, 'data': data['data']['document']};
       } else {
@@ -234,7 +256,7 @@ class AuthService {
         },
       );
 
-      final data = jsonDecode(response.body);
+      final data = _parseResponse(response);
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true};
       } else {
@@ -259,7 +281,7 @@ class AuthService {
         },
       );
 
-      final data = jsonDecode(response.body);
+      final data = _parseResponse(response);
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true, 'message': data['message']};
       } else {
@@ -284,7 +306,7 @@ class AuthService {
         },
       );
 
-      final data = jsonDecode(response.body);
+      final data = _parseResponse(response);
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true, 'data': data['data']};
       } else {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/psychologist.dart';
 import '../theme/app_theme.dart';
+import 'appointment_booking_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Psychologist psychologist;
@@ -18,7 +19,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   int _selectedDateIndex = 0;
-  String? _selectedTime;
+  String _selectedTime = '09:00 AM';
 
   final List<Map<String, String>> _dates = [
     {'day': 'MON', 'num': '12'},
@@ -36,121 +37,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ];
 
   void _showBookingConfirmation() {
-    if (_selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a time slot first.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    final date = _dates[_selectedDateIndex];
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? AppTheme.cardDark
-            : Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle_outline, color: AppTheme.primary, size: 28),
-            const SizedBox(width: 10),
-            Text(
-              'Confirm Session',
-              style: TextStyle(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? AppTheme.textLight
-                    : AppTheme.textDark,
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'You are booking a consultation with:',
-              style: TextStyle(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? AppTheme.textSecondaryDark
-                    : AppTheme.textSecondaryLight,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              widget.psychologist.name,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 16, color: AppTheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Date: ${date['day']} ${date['num']} Oct',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 16, color: AppTheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Time: $_selectedTime',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.payments_outlined, size: 16, color: AppTheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Fee: \$${widget.psychologist.pricePerSession}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Session booked successfully for ${date['day']} ${date['num']} Oct at $_selectedTime!'),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: AppTheme.bgDark,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text('Confirm', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
+    AppointmentBookingSheet.show(context, widget.psychologist);
   }
 
   @override
