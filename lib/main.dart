@@ -8,6 +8,7 @@ import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
 import 'screens/application_status_screen.dart';
 import 'screens/psychologist/psychologist_main_layout.dart';
+import 'screens/patient_appointments_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -130,21 +131,25 @@ class _AppRootState extends State<AppRoot> {
     }
 
     final roles = List<String>.from(_currentUser?['roles'] ?? ['USER']);
+    final isVerifiedPsychologist = roles.contains('PSYCHOLOGIST') ||
+        roles.contains('PSYCHOLOGIST_VERIFIED') ||
+        _currentUser?['psychologistProfile']?['status'] == 'VERIFICADO';
 
-    // Route 1: Psychologist Applicant (under verification review)
-    if (roles.contains('PSYCHOLOGIST_APPLICANT')) {
-      return ApplicationStatusScreen(
-        onLogout: _handleLogout,
-      );
-    }
-
-    // Route 2: Verified Psychologist (5 bottom sections: Inicio, Agenda, Consultas, Community, Perfil)
-    if (roles.contains('PSYCHOLOGIST') || roles.contains('PSYCHOLOGIST_VERIFIED')) {
+    // Route 1: Verified Psychologist (5 bottom sections: Inicio, Agenda, Consultas, Community, Perfil)
+    if (isVerifiedPsychologist) {
       return PsychologistMainLayout(
         onLogout: _handleLogout,
         onToggleTheme: widget.onToggleTheme,
         isDarkMode: widget.isDarkMode,
         userProfile: _currentUser,
+      );
+    }
+
+    // Route 2: Psychologist Applicant (under verification review)
+    if (roles.contains('PSYCHOLOGIST_APPLICANT')) {
+      return ApplicationStatusScreen(
+        onLogout: _handleLogout,
+        onRefreshAuth: _checkAuthStatus,
       );
     }
 
@@ -478,6 +483,26 @@ class _AppRootState extends State<AppRoot> {
             ),
             const SizedBox(height: 24),
 
+            _buildSettingTile(
+              Icons.calendar_month_outlined,
+              'Mis Citas y Consultas',
+              isDark,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => PatientAppointmentsScreen(
+                      onNavigateToDirectory: () {
+                        Navigator.of(context).pop();
+                        setState(() {
+                          _currentNavIndex = 1;
+                          _selectedPsychologist = null;
+                        });
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
             _buildSettingTile(Icons.shield_outlined, 'Privacy & Safety', isDark),
             _buildSettingTile(Icons.notifications_none_outlined, 'Notification Settings', isDark),
             _buildSettingTile(Icons.payment_outlined, 'Subscription & Billing', isDark),
@@ -539,24 +564,27 @@ class _AppRootState extends State<AppRoot> {
     );
   }
 
-  Widget _buildSettingTile(IconData icon, String title, bool isDark) {
+  Widget _buildSettingTile(IconData icon, String title, bool isDark, {VoidCallback? onTap}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
+      child: Material(
         color: isDark ? AppTheme.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? AppTheme.borderSubtleDark : AppTheme.borderSubtleLight,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isDark ? AppTheme.borderSubtleDark : AppTheme.borderSubtleLight,
+          ),
         ),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: AppTheme.primary),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        child: ListTile(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          leading: Icon(icon, color: AppTheme.primary),
+          title: Text(
+            title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+          onTap: onTap,
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: () {},
       ),
     );
   }

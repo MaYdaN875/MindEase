@@ -135,11 +135,11 @@ class PsychologistSettingsScreen extends StatelessWidget {
           child: Column(
             children: [
               // Settings Container
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? AppTheme.cardDark : Colors.white,
+              Material(
+                color: isDark ? AppTheme.cardDark : Colors.white,
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                  side: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
                 ),
                 child: Column(
                   children: [
@@ -240,13 +240,11 @@ class PsychologistSettingsScreen extends StatelessWidget {
               const SizedBox(height: 20),
 
               // Logout button
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: isDark ? AppTheme.error.withValues(alpha: 0.15) : AppTheme.errorContainer,
-                  borderRadius: BorderRadius.circular(16),
-                ),
+              Material(
+                color: isDark ? AppTheme.error.withValues(alpha: 0.15) : AppTheme.errorContainer,
+                borderRadius: BorderRadius.circular(16),
                 child: ListTile(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   leading: const Icon(Icons.logout, color: AppTheme.error),
                   title: const Text('Cerrar sesión', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold)),
                   onTap: onLogout,

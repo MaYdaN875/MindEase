@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../psychologist_profile_form_screen.dart';
 
-class PsychologistProfileScreen extends StatelessWidget {
+class PsychologistProfileScreen extends StatefulWidget {
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenSettings;
   final VoidCallback onLogout;
@@ -21,10 +22,54 @@ class PsychologistProfileScreen extends StatelessWidget {
   });
 
   @override
+  State<PsychologistProfileScreen> createState() => _PsychologistProfileScreenState();
+}
+
+class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
+  final AuthService _authService = AuthService();
+  bool _autoConfirm = false;
+  bool _isUpdating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoConfirm = widget.userProfile?['psychologistProfile']?['autoConfirmAppointments'] == true;
+  }
+
+  Future<void> _toggleAutoConfirm(bool value) async {
+    setState(() {
+      _autoConfirm = value;
+      _isUpdating = true;
+    });
+
+    final res = await _authService.updatePsychologistProfile({'autoConfirmAppointments': value});
+    if (mounted) {
+      setState(() {
+        _isUpdating = false;
+        if (res['success'] != true) {
+          _autoConfirm = !value;
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            value
+                ? 'Confirmación automática activada: Las citas se confirmarán de inmediato.'
+                : 'Confirmación manual activada: Las citas requerirán tu aprobación.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: value ? AppTheme.primaryDark : Colors.grey.shade800,
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final doctorName = userProfile?['name'] ?? 'Dr. Alejandro Torres';
-    final avatarUrl = userProfile?['avatarUrl'] ??
+    final doctorName = widget.userProfile?['name'] ?? 'Dr. Alejandro Torres';
+    final avatarUrl = widget.userProfile?['avatarUrl'] ??
         'https://lh3.googleusercontent.com/aida-public/AB6AXuBVs8tIfuOwuiiM-Jm-RNLgqdr8y0XfiRuGHeVo2ftxGEBO3ELLyb399uhfqzzNCY6cFQbCw6_XflUCBZQxmXV9XUuQuFlNJRv4G930tsKTwqHY9YhTaBxMCgjwlpZnX0vn3JxLr0W8eRACOBZZCnyM9qyHdeZ4hrKp38VF7ezCzcfqITwxmviFLDSnDMDfaXPu_cMZ7EQYa5r1TDfPPLjGUN8wcewpo7vnMM-EuiyfrvReGwfyR-AWmw';
 
     return Scaffold(
@@ -33,18 +78,18 @@ class PsychologistProfileScreen extends StatelessWidget {
         centerTitle: false,
         actions: [
           IconButton(
-            icon: Icon(isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
-            onPressed: onToggleTheme,
+            icon: Icon(widget.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+            onPressed: widget.onToggleTheme,
             tooltip: 'Cambiar tema',
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            onPressed: onOpenSettings,
+            onPressed: widget.onOpenSettings,
             tooltip: 'Configuración',
           ),
           IconButton(
             icon: const Icon(Icons.notifications_none_outlined),
-            onPressed: onOpenNotifications,
+            onPressed: widget.onOpenNotifications,
             tooltip: 'Notificaciones',
           ),
           const SizedBox(width: 8),
@@ -307,6 +352,46 @@ class PsychologistProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // Preferencia de Aprobación de Citas
+              Material(
+                color: isDark ? AppTheme.cardDark : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                ),
+                child: SwitchListTile(
+                  title: Text(
+                    'Confirmación automática',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                    ),
+                  ),
+                  subtitle: Text(
+                    _autoConfirm
+                        ? 'Las citas se confirman al instante sin requerir tu aprobación previa.'
+                        : 'Las citas entran como solicitudes pendientes y tú decides aceptarlas.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                    ),
+                  ),
+                  value: _autoConfirm,
+                  onChanged: _isUpdating ? null : _toggleAutoConfirm,
+                  activeThumbColor: AppTheme.primary,
+                  secondary: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.auto_mode, color: AppTheme.primary, size: 20),
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
 
               // Botón Editar Perfil
@@ -331,7 +416,7 @@ class PsychologistProfileScreen extends StatelessWidget {
 
               // Cerrar sesión
               TextButton.icon(
-                onPressed: onLogout,
+                onPressed: widget.onLogout,
                 icon: const Icon(Icons.logout, color: AppTheme.error),
                 label: const Text('Cerrar sesión', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold)),
               ),

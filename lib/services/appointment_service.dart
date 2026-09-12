@@ -182,4 +182,58 @@ class AppointmentService {
       return {'success': false, 'message': 'Error de conexión: $e'};
     }
   }
+
+  // POST /api/consultations/:appointmentId/start
+  Future<Map<String, dynamic>> startConsultation(String appointmentId, {String? meetingUrl}) async {
+    try {
+      final headers = await _getHeaders();
+      final body = meetingUrl != null ? jsonEncode({'meetingUrl': meetingUrl}) : null;
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/consultations/$appointmentId/start'),
+        headers: headers,
+        body: body,
+      );
+
+      final data = _parseResponse(response);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Consulta iniciada',
+          'data': data['data']?['consultation'],
+        };
+      }
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Error al iniciar la consulta',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    }
+  }
+
+  // POST /api/consultations/:appointmentId/complete
+  Future<Map<String, dynamic>> completeConsultation(String appointmentId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/consultations/$appointmentId/complete'),
+        headers: headers,
+      );
+
+      final data = _parseResponse(response);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Consulta finalizada con éxito',
+          'data': data['data']?['consultation'],
+        };
+      }
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Error al concluir la consulta',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    }
+  }
 }

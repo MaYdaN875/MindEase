@@ -48,7 +48,7 @@ class PsychologistEarningsScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isDark ? AppTheme.cardDark : Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: const Border(left: BorderSide(color: AppTheme.primary, width: 4)),
+                  border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.03),

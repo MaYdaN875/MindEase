@@ -22,7 +22,7 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
   final AppointmentService _appointmentService = AppointmentService();
 
   String _selectedFilter = 'Próximas';
-  final List<String> _filters = ['Próximas', 'En curso', 'Finalizadas', 'Canceladas'];
+  final List<String> _filters = ['Solicitudes', 'Próximas', 'En curso', 'Finalizadas', 'Canceladas'];
 
   bool _isLoading = true;
   List<dynamic> _appointments = [];
@@ -77,6 +77,55 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
         );
       }
     }
+  }
+
+  void _showRejectDialog(String apptId) {
+    final textController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rechazar / Cancelar Solicitud'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Indica el motivo para notificar al paciente:',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: textController,
+              decoration: const InputDecoration(
+                hintText: 'Ej. Fuera de horario, especialista no disponible...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Volver'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final reason = textController.text.trim().isEmpty
+                  ? 'Especialista no disponible en este horario'
+                  : textController.text.trim();
+              Navigator.pop(ctx);
+              _updateStatus(apptId, 'CANCELLED', reason: reason);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showConsultationDetails(dynamic appt) {
@@ -168,21 +217,38 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                 ),
               ),
               const SizedBox(height: 20),
-              if (status == 'CONFIRMED' || status == 'PENDING') ...[
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _enterConsultation(patientName);
-                  },
-                  icon: const Icon(Icons.video_call),
-                  label: const Text('Entrar a Sala de Consulta', style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: AppTheme.textDark,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              if (status == 'CONFIRMED' || status == 'IN_PROGRESS') ...[
+                if (status == 'CONFIRMED')
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _startConsultation(apptId, patientName);
+                    },
+                    icon: const Icon(Icons.video_call),
+                    label: const Text('Iniciar Consulta Clínica', style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: AppTheme.textDark,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
-                ),
+                if (status == 'IN_PROGRESS') ...[
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _showCompleteDialog(apptId, patientName);
+                    },
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('Finalizar Consulta', style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 OutlinedButton(
                   onPressed: () {
@@ -204,12 +270,87 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
     );
   }
 
-  void _enterConsultation(String patientName) {
+  Future<void> _startConsultation(String apptId, String patientName) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Iniciando sesión segura con $patientName...'),
+        content: Text('Iniciando sesión con $patientName...'),
         backgroundColor: AppTheme.primaryDark,
         behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    final res = await _appointmentService.startConsultation(apptId);
+    if (mounted) {
+      if (res['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Consulta con $patientName iniciada (En curso).'),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        setState(() {
+          _selectedFilter = 'En curso';
+        });
+        _fetchAppointments();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message'] ?? 'Error al iniciar consulta.'),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showCompleteDialog(String apptId, String patientName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Finalizar Consulta'),
+        content: Text('¿Deseas dar por concluida la sesión clínica con $patientName? Se registrará como completada.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Continuar sesión'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final res = await _appointmentService.completeConsultation(apptId);
+              if (mounted) {
+                if (res['success'] == true) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Consulta con $patientName finalizada con éxito.'),
+                      backgroundColor: const Color(0xFF10B981),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  setState(() {
+                    _selectedFilter = 'Finalizadas';
+                  });
+                  _fetchAppointments();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(res['message'] ?? 'Error al concluir consulta.'),
+                      backgroundColor: AppTheme.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Finalizar Consulta'),
+          ),
+        ],
       ),
     );
   }
@@ -220,10 +361,12 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
 
     final filteredAppointments = _appointments.where((appt) {
       final status = (appt['status'] as String?)?.toUpperCase() ?? 'CONFIRMED';
-      if (_selectedFilter == 'Próximas') {
-        return status == 'CONFIRMED' || status == 'PENDING';
+      if (_selectedFilter == 'Solicitudes') {
+        return status == 'PENDING';
+      } else if (_selectedFilter == 'Próximas') {
+        return status == 'CONFIRMED';
       } else if (_selectedFilter == 'En curso') {
-        return status == 'IN_PROGRESS' || status == 'CONFIRMED';
+        return status == 'IN_PROGRESS';
       } else if (_selectedFilter == 'Finalizadas') {
         return status == 'COMPLETED';
       } else if (_selectedFilter == 'Canceladas') {
@@ -274,18 +417,60 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                     child: Row(
                       children: _filters.map((filter) {
                         final isSelected = _selectedFilter == filter;
+                        int count = 0;
+                        if (filter == 'Solicitudes') {
+                          count = _appointments.where((a) => (a['status'] as String?)?.toUpperCase() == 'PENDING').length;
+                        } else if (filter == 'Próximas') {
+                          count = _appointments.where((a) => (a['status'] as String?)?.toUpperCase() == 'CONFIRMED').length;
+                        } else if (filter == 'En curso') {
+                          count = _appointments.where((a) => (a['status'] as String?)?.toUpperCase() == 'IN_PROGRESS').length;
+                        } else if (filter == 'Finalizadas') {
+                          count = _appointments.where((a) => (a['status'] as String?)?.toUpperCase() == 'COMPLETED').length;
+                        } else if (filter == 'Canceladas') {
+                          count = _appointments.where((a) => (a['status'] as String?)?.toUpperCase() == 'CANCELLED').length;
+                        }
+
                         return Padding(
                           padding: const EdgeInsets.only(right: 8.0),
                           child: ChoiceChip(
-                            label: Text(
-                              filter,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isSelected
-                                    ? AppTheme.textDark
-                                    : (isDark ? AppTheme.textSecondaryDark : AppTheme.textMediumLight),
-                              ),
+                            label: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  filter,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected
+                                        ? AppTheme.textDark
+                                        : (isDark ? AppTheme.textSecondaryDark : AppTheme.textMediumLight),
+                                  ),
+                                ),
+                                if (count > 0) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? AppTheme.textDark.withValues(alpha: 0.2)
+                                          : (filter == 'Solicitudes'
+                                              ? AppTheme.tertiaryFixedDim
+                                              : AppTheme.primary.withValues(alpha: 0.2)),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      '$count',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: isSelected
+                                            ? AppTheme.textDark
+                                            : (filter == 'Solicitudes' ? Colors.black : AppTheme.primaryDark),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             selected: isSelected,
                             onSelected: (selected) {
@@ -453,28 +638,65 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                                         child: Row(
                                           mainAxisAlignment: MainAxisAlignment.end,
                                           children: [
-                                            if (status == 'CONFIRMED' || status == 'PENDING') ...[
+                                            if (status == 'PENDING') ...[
                                               TextButton(
-                                                onPressed: () => _updateStatus(apptId, 'CANCELLED', reason: 'Cancelada por el profesional'),
-                                                child: const Text('Cancelar', style: TextStyle(color: AppTheme.error, fontSize: 12)),
+                                                onPressed: () => _showRejectDialog(apptId),
+                                                child: const Text('Rechazar', style: TextStyle(color: AppTheme.error, fontSize: 12)),
                                               ),
-                                            ],
-                                            TextButton(
-                                              onPressed: () => _showConsultationDetails(appt),
-                                              child: const Text('Ver detalles', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
-                                            ),
-                                            if (status == 'CONFIRMED') ...[
                                               const SizedBox(width: 8),
                                               ElevatedButton.icon(
-                                                onPressed: () => _enterConsultation(patientName),
+                                                onPressed: () => _updateStatus(apptId, 'CONFIRMED'),
+                                                icon: const Icon(Icons.check, size: 14),
+                                                label: const Text('Aceptar Cita', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: const Color(0xFF10B981),
+                                                  foregroundColor: Colors.white,
+                                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                ),
+                                              ),
+                                            ] else if (status == 'CONFIRMED') ...[
+                                              TextButton(
+                                                onPressed: () => _showRejectDialog(apptId),
+                                                child: const Text('Cancelar', style: TextStyle(color: AppTheme.error, fontSize: 12)),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => _showConsultationDetails(appt),
+                                                child: const Text('Ver detalles', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              ElevatedButton.icon(
+                                                onPressed: () => _startConsultation(apptId, patientName),
                                                 icon: const Icon(Icons.arrow_forward, size: 14),
-                                                label: const Text('Entrar a consulta', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                                label: const Text('Iniciar consulta', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: AppTheme.primary,
                                                   foregroundColor: AppTheme.textDark,
                                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                                 ),
+                                              ),
+                                            ] else if (status == 'IN_PROGRESS') ...[
+                                              TextButton(
+                                                onPressed: () => _showConsultationDetails(appt),
+                                                child: const Text('Ver detalles', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              ElevatedButton.icon(
+                                                onPressed: () => _showCompleteDialog(apptId, patientName),
+                                                icon: const Icon(Icons.check_circle_outline, size: 14),
+                                                label: const Text('Finalizar consulta', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: const Color(0xFF10B981),
+                                                  foregroundColor: Colors.white,
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                ),
+                                              ),
+                                            ] else ...[
+                                              TextButton(
+                                                onPressed: () => _showConsultationDetails(appt),
+                                                child: const Text('Ver detalles', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
                                               ),
                                             ],
                                           ],

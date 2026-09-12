@@ -5,8 +5,13 @@ import 'psychologist_profile_form_screen.dart';
 
 class ApplicationStatusScreen extends StatefulWidget {
   final VoidCallback onLogout;
+  final VoidCallback? onRefreshAuth;
 
-  const ApplicationStatusScreen({super.key, required this.onLogout});
+  const ApplicationStatusScreen({
+    super.key,
+    required this.onLogout,
+    this.onRefreshAuth,
+  });
 
   @override
   State<ApplicationStatusScreen> createState() => _ApplicationStatusScreenState();
@@ -191,70 +196,118 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // Card 1: Verificación en Proceso (Pending)
-                _buildVerificationCard(
-                  borderColor: AppTheme.tertiaryFixedDim,
-                  iconBg: AppTheme.tertiaryFixedDim.withValues(alpha: 0.15),
-                  iconColor: AppTheme.tertiaryFixedDim,
-                  icon: Icons.schedule,
-                  title: 'Verificación en Proceso',
-                  description:
-                      'Tu perfil está siendo revisado por nuestro equipo de validación clínica. Te notificaremos una vez que la verificación esté completa.',
-                  actionText: 'Ver detalles de verificación',
-                  actionIcon: Icons.chevron_right,
-                  isActive: _status == 'PENDIENTE_REVISION' || _status == 'EN_REVISION',
-                  isDark: isDark,
-                  onAction: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Tu expediente está en la cola de revisión.'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 14),
-
-                // Card 2: Acción Requerida (Requires changes)
-                _buildVerificationCard(
-                  borderColor: AppTheme.primary,
-                  iconBg: AppTheme.primary.withValues(alpha: 0.15),
-                  iconColor: AppTheme.primary,
-                  icon: Icons.error_outline,
-                  title: 'Acción Requerida',
-                  description:
-                      'Necesitamos información adicional o corregir documentos para completar tu verificación profesional. Por favor, revisa los documentos solicitados.',
-                  actionText: 'Subir documentos',
-                  actionIcon: Icons.upload_file,
-                  isActive: _status == 'REQUIERE_CAMBIOS' || _status == 'REGISTRO_INCOMPLETO',
-                  isDark: isDark,
-                  onAction: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PsychologistProfileFormScreen(
-                          onFormSubmitted: _fetchStatus,
+                // Mostrar ÚNICAMENTE la tarjeta correspondiente al estado actual
+                if (_status == 'PENDIENTE_REVISION' || _status == 'EN_REVISION') ...[
+                  _buildVerificationCard(
+                    borderColor: AppTheme.tertiaryFixedDim,
+                    iconBg: AppTheme.tertiaryFixedDim.withValues(alpha: 0.15),
+                    iconColor: AppTheme.tertiaryFixedDim,
+                    icon: Icons.schedule,
+                    title: 'Verificación en Proceso',
+                    description:
+                        'Tu perfil está siendo revisado por nuestro equipo de validación clínica. Te notificaremos una vez que la verificación esté completa.',
+                    actionText: 'Ver detalles de verificación',
+                    actionIcon: Icons.chevron_right,
+                    isActive: true,
+                    isDark: isDark,
+                    onAction: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Tu expediente está en la cola de revisión.'),
+                          behavior: SnackBarBehavior.floating,
                         ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 14),
-
-                // Card 3: Cuenta Suspendida (Suspended)
-                _buildVerificationCard(
-                  borderColor: AppTheme.error,
-                  iconBg: AppTheme.error.withValues(alpha: 0.15),
-                  iconColor: AppTheme.error,
-                  icon: Icons.block,
-                  title: 'Cuenta Suspendida',
-                  description:
-                      'Tu cuenta profesional se encuentra temporalmente suspendida. Contacta a soporte para más información y resolución del estado.',
-                  actionText: 'Contactar soporte',
-                  actionIcon: Icons.support_agent,
-                  isActive: _status == 'SUSPENDIDO',
-                  isDark: isDark,
-                  onAction: _showSupportDialog,
-                ),
+                      );
+                    },
+                  ),
+                ] else if (_status == 'REQUIERE_CAMBIOS' || _status == 'REGISTRO_INCOMPLETO') ...[
+                  _buildVerificationCard(
+                    borderColor: AppTheme.primary,
+                    iconBg: AppTheme.primary.withValues(alpha: 0.15),
+                    iconColor: AppTheme.primary,
+                    icon: Icons.error_outline,
+                    title: 'Acción Requerida',
+                    description:
+                        'Necesitamos información adicional o corregir documentos para completar tu verificación profesional. Por favor, revisa los documentos solicitados.',
+                    actionText: 'Subir documentos',
+                    actionIcon: Icons.upload_file,
+                    isActive: true,
+                    isDark: isDark,
+                    onAction: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PsychologistProfileFormScreen(
+                            onFormSubmitted: _fetchStatus,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ] else if (_status == 'SUSPENDIDO') ...[
+                  _buildVerificationCard(
+                    borderColor: AppTheme.error,
+                    iconBg: AppTheme.error.withValues(alpha: 0.15),
+                    iconColor: AppTheme.error,
+                    icon: Icons.block,
+                    title: 'Cuenta Suspendida',
+                    description:
+                        'Tu cuenta profesional se encuentra temporalmente suspendida. Contacta a soporte para más información y resolución del estado.',
+                    actionText: 'Contactar soporte',
+                    actionIcon: Icons.support_agent,
+                    isActive: true,
+                    isDark: isDark,
+                    onAction: _showSupportDialog,
+                  ),
+                ] else if (_status == 'RECHAZADO') ...[
+                  _buildVerificationCard(
+                    borderColor: AppTheme.error,
+                    iconBg: AppTheme.error.withValues(alpha: 0.15),
+                    iconColor: AppTheme.error,
+                    icon: Icons.cancel_outlined,
+                    title: 'Solicitud Rechazada',
+                    description:
+                        'Tu solicitud de acreditación no fue aprobada por el equipo administrativo. Revisa las observaciones en el historial o contacta a soporte.',
+                    actionText: 'Contactar soporte',
+                    actionIcon: Icons.support_agent,
+                    isActive: true,
+                    isDark: isDark,
+                    onAction: _showSupportDialog,
+                  ),
+                ] else if (_status == 'VERIFICADO') ...[
+                  _buildVerificationCard(
+                    borderColor: Colors.green,
+                    iconBg: Colors.green.withValues(alpha: 0.15),
+                    iconColor: Colors.green,
+                    icon: Icons.check_circle_outline,
+                    title: 'Perfil Verificado',
+                    description:
+                        '¡Felicidades! Tu acreditación profesional ha sido aprobada exitosamente y tu perfil se encuentra activo en la plataforma.',
+                    actionText: 'Volver a mi panel',
+                    actionIcon: Icons.arrow_forward,
+                    isActive: true,
+                    isDark: isDark,
+                    onAction: () {
+                      if (widget.onRefreshAuth != null) {
+                        widget.onRefreshAuth!();
+                      } else if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  ),
+                ] else ...[
+                  _buildVerificationCard(
+                    borderColor: AppTheme.primary,
+                    iconBg: AppTheme.primary.withValues(alpha: 0.15),
+                    iconColor: AppTheme.primary,
+                    icon: Icons.info_outline,
+                    title: _status,
+                    description: 'Estado de tu cuenta: $_status.',
+                    actionText: 'Contactar soporte',
+                    actionIcon: Icons.support_agent,
+                    isActive: true,
+                    isDark: isDark,
+                    onAction: _showSupportDialog,
+                  ),
+                ],
                 const SizedBox(height: 24),
 
                 // Historial Timeline Section

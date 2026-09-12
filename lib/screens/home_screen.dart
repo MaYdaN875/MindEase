@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import '../services/appointment_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
+import 'patient_appointments_screen.dart';
+import 'patient_notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onNavigateToDirectory;
@@ -19,6 +23,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String? _selectedMood;
+  final AppointmentService _appointmentService = AppointmentService();
+  final NotificationService _notificationService = NotificationService();
+  Map<String, dynamic>? _upcomingAppointment;
+  bool _isLoadingAppointment = true;
+  int _unreadNotifications = 0;
 
   final List<Map<String, dynamic>> _moods = [
     {'label': 'Great', 'icon': Icons.sentiment_very_satisfied},
@@ -29,17 +38,100 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _fetchUpcomingAppointment();
+    _fetchNotificationsCount();
+  }
+
+  Future<void> _fetchNotificationsCount() async {
+    final res = await _notificationService.getMyNotifications(limit: 1);
+    if (mounted && res['success'] == true) {
+      setState(() {
+        _unreadNotifications = res['unreadCount'] ?? 0;
+      });
+    }
+  }
+
+  Future<void> _fetchUpcomingAppointment() async {
+    _fetchNotificationsCount();
+    setState(() {
+      _isLoadingAppointment = true;
+    });
+
+    final res = await _appointmentService.getMyAppointments(asRole: 'patient');
+    if (mounted) {
+      setState(() {
+        _isLoadingAppointment = false;
+        if (res['success'] == true) {
+          final List<dynamic> list = res['data'] ?? [];
+          final now = DateTime.now();
+          final upcoming = list.where((a) {
+            final status = a['status'];
+            final startAtStr = a['startAt'];
+            final startAt = startAtStr != null ? DateTime.parse(startAtStr).toLocal() : null;
+            return (status == 'CONFIRMED' || status == 'PENDING') &&
+                (startAt == null || startAt.isAfter(now.subtract(const Duration(hours: 1))));
+          }).toList();
+
+          if (upcoming.isNotEmpty) {
+            upcoming.sort((a, b) {
+              final aDt = DateTime.tryParse(a['startAt'] ?? '') ?? DateTime.now();
+              final bDt = DateTime.tryParse(b['startAt'] ?? '') ?? DateTime.now();
+              return aDt.compareTo(bDt);
+            });
+            _upcomingAppointment = upcoming.first;
+          } else {
+            _upcomingAppointment = null;
+          }
+        }
+      });
+    }
+  }
+
+  String _getMonthAbbr(int month) {
+    const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+    if (month >= 1 && month <= 12) return months[month - 1];
+    return '';
+  }
+
+  void _openAppointments() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PatientAppointmentsScreen(
+          onNavigateToDirectory: widget.onNavigateToDirectory,
+        ),
+      ),
+    ).then((_) => _fetchUpcomingAppointment());
+  }
+
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PatientNotificationsScreen(
+          onNavigateToDirectory: widget.onNavigateToDirectory,
+        ),
+      ),
+    ).then((_) {
+      _fetchNotificationsCount();
+      _fetchUpcomingAppointment();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: RefreshIndicator(
+          onRefresh: _fetchUpcomingAppointment,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               // Header
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -117,26 +209,51 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.notifications_none),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('No new notifications'),
-                                behavior: SnackBarBehavior.floating,
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.notifications_none),
+                              onPressed: _openNotifications,
+                              style: IconButton.styleFrom(
+                                backgroundColor: isDark
+                                    ? AppTheme.cardDark
+                                    : Colors.white,
+                                foregroundColor: isDark
+                                    ? AppTheme.textLight
+                                    : AppTheme.textDark,
+                                elevation: 1,
+                                shadowColor: Colors.black.withValues(alpha: 0.05),
                               ),
-                            );
-                          },
-                          style: IconButton.styleFrom(
-                            backgroundColor: isDark
-                                ? AppTheme.cardDark
-                                : Colors.white,
-                            foregroundColor: isDark
-                                ? AppTheme.textLight
-                                : AppTheme.textDark,
-                            elevation: 1,
-                            shadowColor: Colors.black.withOpacity(0.05),
-                          ),
+                            ),
+                            if (_unreadNotifications > 0)
+                              Positioned(
+                                right: 2,
+                                top: 2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.redAccent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 18,
+                                    minHeight: 18,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _unreadNotifications > 9 ? '9+' : '$_unreadNotifications',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.0,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ),
@@ -475,7 +592,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         TextButton(
-                          onPressed: widget.onNavigateToDirectory,
+                          onPressed: _openAppointments,
                           style: TextButton.styleFrom(
                             foregroundColor: AppTheme.primary,
                           ),
@@ -490,142 +607,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? AppTheme.cardDark : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              left: BorderSide(
-                                color: AppTheme.primary,
-                                width: 4.0,
-                              ),
-                            ),
-                          ),
-                          padding: const EdgeInsets.all(16.0),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Date Block
-                              Container(
-                                width: 48,
-                                height: 52,
-                                decoration: BoxDecoration(
-                                  color: isDark
-                                      ? AppTheme.borderSubtleDark
-                                      : AppTheme.borderSubtleLight,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'OCT',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? AppTheme.textSecondaryDark
-                                            : AppTheme.textSecondaryLight,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    const Text(
-                                      '24',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        height: 1.1,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-
-                              // Content Block
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Dr. Sarah Jenkins',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? AppTheme.textLight
-                                            : AppTheme.textDark,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Cognitive Behavioral Therapy',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: isDark
-                                            ? AppTheme.textSecondaryDark
-                                            : AppTheme.textSecondaryLight,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.schedule,
-                                          size: 14,
-                                          color: isDark
-                                              ? AppTheme.textSecondaryDark
-                                              : AppTheme.textSecondaryLight,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '10:30 AM',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isDark
-                                                ? AppTheme.textSecondaryDark
-                                                : AppTheme.textSecondaryLight,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Icon(
-                                          Icons.videocam,
-                                          size: 14,
-                                          color: isDark
-                                              ? AppTheme.textSecondaryDark
-                                              : AppTheme.textSecondaryLight,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Online Session',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isDark
-                                                ? AppTheme.textSecondaryDark
-                                                : AppTheme.textSecondaryLight,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                    _buildUpcomingSessionContent(theme, isDark),
                   ],
                 ),
               ),
@@ -722,6 +704,278 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+  Widget _buildUpcomingSessionContent(ThemeData theme, bool isDark) {
+    if (_isLoadingAppointment) {
+      return Container(
+        height: 90,
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.cardDark : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? AppTheme.borderSubtleDark : AppTheme.borderSubtleLight,
+          ),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (_upcomingAppointment == null) {
+      return Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.cardDark : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? AppTheme.borderSubtleDark : AppTheme.borderSubtleLight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 36,
+              color: AppTheme.primary.withOpacity(0.8),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'No tienes citas próximas agendadas',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppTheme.textLight : AppTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Encuentra un especialista y programa tu sesión para cuidar de tu bienestar.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+              ),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: widget.onNavigateToDirectory,
+              icon: const Icon(Icons.search, size: 16),
+              label: const Text('Explorar Especialistas'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final appointment = _upcomingAppointment!;
+    DateTime? startAt;
+    if (appointment['startAt'] != null) {
+      startAt = DateTime.tryParse(appointment['startAt'].toString())?.toLocal();
+    }
+    final monthStr = startAt != null ? _getMonthAbbr(startAt.month) : '---';
+    final dayStr = startAt != null ? startAt.day.toString().padLeft(2, '0') : '--';
+    final timeStr = startAt != null
+        ? '${startAt.hour.toString().padLeft(2, '0')}:${startAt.minute.toString().padLeft(2, '0')} hrs'
+        : '--:--';
+
+    final psychologist = appointment['psychologist'];
+    final psyUser = psychologist is Map ? psychologist['user'] : null;
+    final psyName = psyUser is Map
+        ? 'Dr. ${(psyUser['name'] ?? '').toString().trim()} ${(psyUser['lastName'] ?? '').toString().trim()}'.trim()
+        : 'Psicólogo Especialista';
+    final specialty = (psychologist is Map && psychologist['specialty'] != null && psychologist['specialty'].toString().isNotEmpty)
+        ? psychologist['specialty'].toString()
+        : 'Consulta Psicológica';
+
+    final consultation = appointment['consultation'];
+    final modality = consultation is Map && consultation['modality'] == 'PRESENCIAL'
+        ? 'Presencial'
+        : 'En línea';
+    final modalityIcon = modality == 'Presencial' ? Icons.location_on_outlined : Icons.videocam;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openAppointments,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.cardDark : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? AppTheme.borderSubtleDark : AppTheme.borderSubtleLight,
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 5,
+                height: 80,
+                decoration: const BoxDecoration(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 48,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? AppTheme.borderSubtleDark
+                      : AppTheme.borderSubtleLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      monthStr,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isDark
+                            ? AppTheme.textSecondaryDark
+                            : AppTheme.textSecondaryLight,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      dayStr,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        psyName,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        specialty,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? AppTheme.textSecondaryDark
+                              : AppTheme.textSecondaryLight,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            size: 13,
+                            color: isDark
+                                ? AppTheme.textSecondaryDark
+                                : AppTheme.textSecondaryLight,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            timeStr,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: isDark
+                                  ? AppTheme.textSecondaryDark
+                                  : AppTheme.textSecondaryLight,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Icon(
+                            modalityIcon,
+                            size: 13,
+                            color: isDark
+                                ? AppTheme.textSecondaryDark
+                                : AppTheme.textSecondaryLight,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            modality,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: isDark
+                                  ? AppTheme.textSecondaryDark
+                                  : AppTheme.textSecondaryLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: Icon(
+                  Icons.chevron_right,
+                  color: isDark
+                      ? AppTheme.textSecondaryDark
+                      : AppTheme.textSecondaryLight,
+                ),
+              ),
             ],
           ),
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/psychologist_service.dart';
+import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 
 class PsychologistDashboardScreen extends StatefulWidget {
@@ -30,18 +31,31 @@ class PsychologistDashboardScreen extends StatefulWidget {
 
 class _PsychologistDashboardScreenState extends State<PsychologistDashboardScreen> {
   final PsychologistService _psychologistService = PsychologistService();
+  final NotificationService _notificationService = NotificationService();
 
   bool _isLoading = true;
   String? _errorMessage;
   Map<String, dynamic>? _dashboardData;
+  int _unreadNotifications = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchDashboard();
+    _fetchUnreadNotifications();
+  }
+
+  Future<void> _fetchUnreadNotifications() async {
+    final res = await _notificationService.getMyNotifications(limit: 1);
+    if (mounted && res['success'] == true) {
+      setState(() {
+        _unreadNotifications = res['unreadCount'] ?? 0;
+      });
+    }
   }
 
   Future<void> _fetchDashboard() async {
+    _fetchUnreadNotifications();
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -179,20 +193,43 @@ class _PsychologistDashboardScreenState extends State<PsychologistDashboardScree
             tooltip: 'Cambiar tema',
           ),
           IconButton(
-            icon: const Stack(
+            icon: Stack(
+              clipBehavior: Clip.none,
               children: [
-                Icon(Icons.notifications_none_outlined),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: CircleAvatar(
-                    radius: 4,
-                    backgroundColor: AppTheme.error,
+                const Icon(Icons.notifications_none_outlined),
+                if (_unreadNotifications > 0)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: Colors.redAccent,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          _unreadNotifications > 9 ? '9+' : '$_unreadNotifications',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
               ],
             ),
-            onPressed: widget.onOpenNotifications,
+            onPressed: () {
+              widget.onOpenNotifications();
+              _fetchUnreadNotifications();
+            },
             tooltip: 'Notificaciones',
           ),
           const SizedBox(width: 8),
