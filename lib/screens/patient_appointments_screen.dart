@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/appointment_service.dart';
+import '../models/appointment_status.dart';
+import '../services/session_link.dart';
+import 'patient_payment_history_screen.dart';
 import '../theme/app_theme.dart';
 
 class PatientAppointmentsScreen extends StatefulWidget {
@@ -59,30 +62,30 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
         return AlertDialog(
           backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Cancelar consulta', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Text('Cancelar Consulta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('¿Estás seguro de que deseas cancelar esta consulta? Esta acción liberará el horario.'),
-              const SizedBox(height: 12),
+              const Text('¿Estás seguro de que deseas cancelar esta cita? Esta acción no se puede deshacer.', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 16),
               TextField(
                 controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Motivo de cancelación (opcional)',
-                  border: OutlineInputBorder(),
+                maxLines: 2,
+                decoration: InputDecoration(
+                  hintText: 'Motivo de la cancelación (opcional)',
+                  hintStyle: const TextStyle(fontSize: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.all(12),
                 ),
               ),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Volver', style: TextStyle(color: Colors.grey)),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Volver')),
             ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error, foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
               child: const Text('Confirmar cancelación'),
             ),
           ],
@@ -94,14 +97,13 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       final res = await _appointmentService.updateAppointmentStatus(
         appointmentId,
         'CANCELLED',
-        cancellationReason: reasonController.text.trim().isNotEmpty ? reasonController.text.trim() : 'Cancelada por el paciente',
+        cancellationReason: reasonController.text.trim().isNotEmpty ? reasonController.text.trim() : null,
       );
-
       if (mounted) {
         if (res['success'] == true) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Consulta cancelada exitosamente.'),
+              content: Text('Consulta cancelada con éxito.'),
               backgroundColor: AppTheme.primaryDark,
               behavior: SnackBarBehavior.floating,
             ),
@@ -110,8 +112,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(res['message'] ?? 'Error al cancelar la consulta.'),
-              backgroundColor: AppTheme.error,
+              content: Text(res['message'] ?? 'No se pudo cancelar la consulta.'),
+              backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -147,6 +149,17 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       appBar: AppBar(
         title: const Text('Mis Consultas'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long_outlined),
+            tooltip: 'Mis Recibos y Pagos',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PatientPaymentHistoryScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -298,7 +311,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     final doctorName = appt['psychologist']?['user']?['name'] ?? 'Especialista';
     final startAtStr = appt['startAt'];
     final startAt = startAtStr != null ? DateTime.parse(startAtStr).toLocal() : null;
-    final status = appt['status'] ?? 'CONFIRMED';
+    final status = appointmentDisplayStatus(appt);
     final price = appt['price'] ?? 0;
     final meetingUrl = appt['consultation']?['meetingUrl'];
 
@@ -463,15 +476,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                     ],
                   ),
                   ElevatedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Uniéndote a la sesión con $doctorName...'),
-                          backgroundColor: const Color(0xFF10B981),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
+                    onPressed: () => openSessionLink(context, meetingUrl),
                     icon: const Icon(Icons.videocam, size: 16),
                     label: const Text('Unirse a consulta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     style: ElevatedButton.styleFrom(
@@ -497,15 +502,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                   if (meetingUrl != null && meetingUrl.isNotEmpty) ...[
                     const SizedBox(width: 8),
                     ElevatedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Enlace de sesión: $meetingUrl'),
-                            backgroundColor: AppTheme.primaryDark,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
+                      onPressed: () => openSessionLink(context, meetingUrl),
                       icon: const Icon(Icons.videocam, size: 16),
                       label: const Text('Entrar a sesión', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       style: ElevatedButton.styleFrom(

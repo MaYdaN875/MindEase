@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/appointment_service.dart';
+import '../../models/appointment_status.dart';
+import '../../services/session_link.dart';
+import 'clinical_notes_screen.dart';
 import '../../theme/app_theme.dart';
 
 class PsychologistConsultationsScreen extends StatefulWidget {
@@ -135,7 +138,7 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
     final timeFormatted = startAt != null
         ? '${startAt.day}/${startAt.month}/${startAt.year} a las ${startAt.hour.toString().padLeft(2, '0')}:${startAt.minute.toString().padLeft(2, '0')}'
         : 'Sin fecha';
-    final status = appt['status'] ?? 'CONFIRMED';
+    final status = appointmentDisplayStatus(appt);
     final apptId = appt['id'];
 
     showModalBottomSheet(
@@ -217,6 +220,21 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                 ),
               ),
               const SizedBox(height: 20),
+              if (status == 'IN_PROGRESS' || status == 'COMPLETED')
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ClinicalNotesScreen(appointmentId: apptId)));
+                  },
+                  icon: const Icon(Icons.edit_note),
+                  label: const Text('Notas clínicas privadas'),
+                ),
+              if (status == 'IN_PROGRESS' && appt['consultation']?['meetingUrl'] != null)
+                OutlinedButton.icon(
+                  onPressed: () => openSessionLink(context, appt['consultation']['meetingUrl']),
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('Abrir sesión virtual'),
+                ),
               if (status == 'CONFIRMED' || status == 'IN_PROGRESS') ...[
                 if (status == 'CONFIRMED')
                   ElevatedButton.icon(
@@ -250,7 +268,7 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                   ),
                 ],
                 const SizedBox(height: 8),
-                OutlinedButton(
+                if (status != 'IN_PROGRESS') OutlinedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
                     _updateStatus(apptId, 'CANCELLED', reason: 'Cancelada por el profesional');
@@ -271,6 +289,25 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
   }
 
   Future<void> _startConsultation(String apptId, String patientName) async {
+    final linkController = TextEditingController();
+    final link = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Iniciar consulta'),
+        content: TextField(
+          controller: linkController,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(labelText: 'Enlace HTTPS de la sesión (opcional)', hintText: 'https://…'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Volver')),
+          TextButton(onPressed: () => Navigator.pop(ctx, linkController.text.trim()), child: const Text('Iniciar')),
+        ],
+      ),
+    );
+    // Dispose after the dialog route has finished its closing animation.
+    Future<void>.delayed(const Duration(milliseconds: 300), linkController.dispose);
+    if (link == null || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Iniciando sesión con $patientName...'),
@@ -279,7 +316,7 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
       ),
     );
 
-    final res = await _appointmentService.startConsultation(apptId);
+    final res = await _appointmentService.startConsultation(apptId, meetingUrl: link.isEmpty ? null : link);
     if (mounted) {
       if (res['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -360,7 +397,7 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final filteredAppointments = _appointments.where((appt) {
-      final status = (appt['status'] as String?)?.toUpperCase() ?? 'CONFIRMED';
+      final status = appointmentDisplayStatus(appt);
       if (_selectedFilter == 'Solicitudes') {
         return status == 'PENDING';
       } else if (_selectedFilter == 'Próximas') {
@@ -533,7 +570,7 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                                 final timeStr = startAt != null
                                     ? '${startAt.day}/${startAt.month}/${startAt.year} • ${startAt.hour.toString().padLeft(2, '0')}:${startAt.minute.toString().padLeft(2, '0')} hrs'
                                     : 'Sin fecha';
-                                final status = appt['status'] ?? 'CONFIRMED';
+                                final status = appointmentDisplayStatus(appt);
                                 final apptId = appt['id'];
 
                                 Color statusColor = AppTheme.primary;

@@ -4,8 +4,9 @@ import 'auth_service.dart';
 
 class AppointmentService {
   static final AppointmentService _instance = AppointmentService._internal();
-  factory AppointmentService() => _instance;
-  AppointmentService._internal();
+  factory AppointmentService({http.Client? client}) => client == null ? _instance : AppointmentService._internal(client: client);
+  AppointmentService._internal({http.Client? client}) : _client = client ?? http.Client();
+  final http.Client _client;
 
   final AuthService _authService = AuthService();
 
@@ -53,7 +54,7 @@ class AppointmentService {
   }) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl/api/appointments'),
         headers: headers,
         body: jsonEncode({
@@ -64,11 +65,16 @@ class AppointmentService {
       );
 
       final data = _parseResponse(response);
-      if (response.statusCode == 201 && data['status'] == 'success') {
+      if ((response.statusCode == 200 || response.statusCode == 201) && data['status'] == 'success') {
+        final apt = data['data'] != null
+            ? (data['data']['appointment'] ?? data['data'])
+            : null;
+        final appointmentId = apt is Map ? (apt['id'] ?? apt['_id'])?.toString() : null;
         return {
           'success': true,
           'message': data['message'] ?? 'Cita reservada exitosamente',
-          'data': data['data']['appointment'],
+          'data': apt,
+          'appointmentId': appointmentId,
         };
       }
 
@@ -105,7 +111,7 @@ class AppointmentService {
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
 
-      final response = await http.get(uri, headers: headers);
+      final response = await _client.get(uri, headers: headers);
       final data = _parseResponse(response);
 
       if (response.statusCode == 200 && data['status'] == 'success') {
@@ -127,7 +133,7 @@ class AppointmentService {
   Future<Map<String, dynamic>> getAppointmentById(String id) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse('$baseUrl/api/appointments/$id'),
         headers: headers,
       );
@@ -160,7 +166,7 @@ class AppointmentService {
       if (cancellationReason != null) {
         body['cancellationReason'] = cancellationReason;
       }
-      final response = await http.patch(
+      final response = await _client.patch(
         Uri.parse('$baseUrl/api/appointments/$id/status'),
         headers: headers,
         body: jsonEncode(body),
@@ -184,11 +190,45 @@ class AppointmentService {
   }
 
   // POST /api/consultations/:appointmentId/start
+  Future<Map<String, dynamic>> getConsultation(String appointmentId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$baseUrl/api/consultations/$appointmentId'),
+        headers: await _getHeaders(),
+      );
+      final data = _parseResponse(response);
+      return {
+        'success': response.statusCode == 200 && data['status'] == 'success',
+        'data': data['data']?['consultation'],
+        'message': data['message'] ?? 'No se pudo cargar la consulta',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateClinicalNotes(String appointmentId, String notes) async {
+    try {
+      final response = await _client.patch(
+        Uri.parse('$baseUrl/api/consultations/$appointmentId/notes'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'clinicalNotes': notes}),
+      );
+      final data = _parseResponse(response);
+      return {
+        'success': response.statusCode == 200 && data['status'] == 'success',
+        'message': data['message'] ?? 'No se pudieron guardar las notas',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    }
+  }
+
   Future<Map<String, dynamic>> startConsultation(String appointmentId, {String? meetingUrl}) async {
     try {
       final headers = await _getHeaders();
-      final body = meetingUrl != null ? jsonEncode({'meetingUrl': meetingUrl}) : null;
-      final response = await http.post(
+      final body = jsonEncode(meetingUrl != null ? {'meetingUrl': meetingUrl} : <String, String>{});
+      final response = await _client.post(
         Uri.parse('$baseUrl/api/consultations/$appointmentId/start'),
         headers: headers,
         body: body,
@@ -215,7 +255,7 @@ class AppointmentService {
   Future<Map<String, dynamic>> completeConsultation(String appointmentId) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl/api/consultations/$appointmentId/complete'),
         headers: headers,
       );

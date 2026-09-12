@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/psychologist.dart';
 import '../services/psychologist_service.dart';
 import '../services/appointment_service.dart';
+import '../services/payment_service.dart';
 import '../theme/app_theme.dart';
 
 class AppointmentBookingSheet extends StatefulWidget {
@@ -33,12 +34,21 @@ class AppointmentBookingSheet extends StatefulWidget {
 class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
   final PsychologistService _psychologistService = PsychologistService();
   final AppointmentService _appointmentService = AppointmentService();
+  final PaymentService _paymentService = PaymentService();
 
-  int _currentStep = 1; // 1 = Slot Selector, 2 = Confirm Reservation
+  final TextEditingController _cardNumberController = TextEditingController(text: '4242 4242 4242 4242');
+  final TextEditingController _expController = TextEditingController(text: '12/28');
+  final TextEditingController _cvcController = TextEditingController(text: '123');
+  final TextEditingController _nameController = TextEditingController(text: 'Titular de la Tarjeta');
+  String? _receiptId;
+  String? _currentAppointmentId;
+
+  int _currentStep = 1; // 1 = Slot Selector, 2 = Confirm & Pay
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   
   bool _isLoadingSlots = false;
   String? _slotsError;
+  String _timeZone = 'America/Mexico_City';
   List<dynamic> _availableSlots = [];
   Map<String, dynamic>? _selectedSlot;
 
@@ -76,13 +86,18 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
       final dt = DateTime.parse(isoTime).toLocal();
       final h = dt.hour.toString().padLeft(2, '0');
       final m = dt.minute.toString().padLeft(2, '0');
-      return '$h:$m';
+      final differentDay = dt.year != _selectedDate.year || dt.month != _selectedDate.month || dt.day != _selectedDate.day;
+      return differentDay ? '${dt.day}/${dt.month} $h:$m' : '$h:$m';
     } catch (_) {
       return isoTime;
     }
   }
 
   Future<void> _fetchSlotsForDate(DateTime date) async {
+    if (_currentAppointmentId != null) {
+      _appointmentService.updateAppointmentStatus(_currentAppointmentId!, 'CANCELLED');
+      _currentAppointmentId = null;
+    }
     setState(() {
       _selectedDate = date;
       _isLoadingSlots = true;
@@ -102,6 +117,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
         final data = res['data'];
         setState(() {
           _availableSlots = data['slots'] ?? [];
+          _timeZone = data['timeZone'] ?? 'America/Mexico_City';
         });
       } else {
         setState(() {
@@ -112,6 +128,18 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
     }
   }
 
+  @override
+  void dispose() {
+    if (_currentAppointmentId != null && _receiptId == null) {
+      _appointmentService.updateAppointmentStatus(_currentAppointmentId!, 'CANCELLED');
+    }
+    _cardNumberController.dispose();
+    _expController.dispose();
+    _cvcController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
+
   Future<void> _handleConfirmBooking() async {
     if (_selectedSlot == null) return;
 
@@ -120,33 +148,100 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
       _bookingError = null;
     });
 
-    final res = await _appointmentService.createAppointment(
-      psychologistId: widget.psychologist.id,
-      startAt: _selectedSlot!['startAt'],
-      endAt: _selectedSlot!['endAt'],
+    // 1. Create Appointment if not already created for this session
+    String? appointmentId = _currentAppointmentId;
+    if (appointmentId == null) {
+      final aptRes = await _appointmentService.createAppointment(
+        psychologistId: widget.psychologist.id,
+        startAt: _selectedSlot!['startAt'],
+        endAt: _selectedSlot!['endAt'],
+      );
+
+      if (!mounted) return;
+      if (aptRes['success'] != true) {
+        setState(() {
+          _isBooking = false;
+          _bookingError = aptRes['message'] ?? 'Ocurrió un error al reservar la cita.';
+        });
+        return;
+      }
+
+      // Robust extraction: direct key, nested object, map fallback or string
+      if (aptRes['appointmentId'] != null) {
+        appointmentId = aptRes['appointmentId']?.toString();
+      } else if (aptRes['data'] is Map) {
+        final m = aptRes['data'] as Map;
+        appointmentId = (m['id'] ?? m['appointment']?['id'])?.toString();
+      } else if (aptRes['data'] is String) {
+        appointmentId = aptRes['data'];
+      } else if (aptRes['id'] != null) {
+        appointmentId = aptRes['id']?.toString();
+      }
+
+      if (appointmentId == null || appointmentId.isEmpty) {
+        setState(() {
+          _isBooking = false;
+          _bookingError = 'No se obtuvo el identificador de la cita.';
+        });
+        return;
+      }
+      _currentAppointmentId = appointmentId;
+    }
+
+    // 2. Parse expiration date
+    final expParts = _expController.text.trim().split('/');
+    int expMonth = 12;
+    int expYear = 2028;
+    if (expParts.length == 2) {
+      expMonth = int.tryParse(expParts[0].trim()) ?? 12;
+      final yr = int.tryParse(expParts[1].trim()) ?? 28;
+      expYear = yr < 100 ? 2000 + yr : yr;
+    }
+
+    // 3. Process payment checkout
+    final payRes = await _paymentService.checkout(
+      appointmentId: appointmentId,
+      cardNumber: _cardNumberController.text,
+      expMonth: expMonth,
+      expYear: expYear,
+      cvc: _cvcController.text,
+      holderName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : 'Titular de Tarjeta',
     );
 
-    if (mounted) {
-      setState(() {
-        _isBooking = false;
-      });
+    if (!mounted) return;
+    setState(() {
+      _isBooking = false;
+    });
 
-      if (res['success'] == true) {
-        _showSuccessDialog();
+    if (payRes['success'] == true) {
+      final payment = payRes['payment'];
+      if (payment is PaymentRecord) {
+        _receiptId = payment.id;
+      } else if (payment is Map) {
+        _receiptId = payment['id']?.toString();
       } else {
-        setState(() {
-          _bookingError = res['message'] ?? 'Ocurrió un error al agendar la cita.';
-        });
+        _receiptId = null;
       }
+      _currentAppointmentId = null;
+      final isAutoConfirmed = payRes['data'] != null && payRes['data']['autoConfirmed'] == true;
+      _showSuccessDialog(isAutoConfirmed: isAutoConfirmed);
+    } else {
+      setState(() {
+        _bookingError = payRes['message'] ?? 'El pago fue declinado. Por favor verifica los datos de tu tarjeta.';
+      });
     }
   }
 
-  void _showSuccessDialog() {
+  void _showSuccessDialog({bool isAutoConfirmed = false}) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final receiptCode = _receiptId != null && _receiptId!.length >= 8
+            ? 'REC-${_receiptId!.substring(0, 8).toUpperCase()}'
+            : null;
+
         return AlertDialog(
           backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -156,19 +251,43 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.15),
+                  color: (isAutoConfirmed ? AppTheme.primary : const Color(0xFF10B981)).withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_circle_outline, color: AppTheme.primary, size: 56),
+                child: Icon(
+                  isAutoConfirmed ? Icons.check_circle_outline : Icons.schedule,
+                  color: isAutoConfirmed ? AppTheme.primary : const Color(0xFF10B981),
+                  size: 56,
+                ),
               ),
               const SizedBox(height: 16),
-              const Text('¡Cita Confirmada!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(
+                isAutoConfirmed ? '¡Pago y Cita Confirmados!' : '¡Solicitud y Pago Recibidos!',
+                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 8),
               Text(
-                'Tu consulta con ${widget.psychologist.name} ha sido reservada con éxito.',
+                isAutoConfirmed
+                    ? 'Tu consulta con ${widget.psychologist.name} ha sido pagada y confirmada con éxito.'
+                    : 'Tu pago está resguardado en custodia y la solicitud fue enviada a ${widget.psychologist.name}. El profesional la verificará y confirmará desde su panel.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13, color: Colors.grey),
               ),
+              if (receiptCode != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.bgDark : AppTheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Folio: $receiptCode',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
@@ -299,6 +418,8 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
           ),
           const SizedBox(height: 8),
 
+          Text('Calendario: $_timeZone. Las horas se muestran en tu hora local.', style: const TextStyle(fontSize: 12)),
+          const SizedBox(height: 8),
           // Week horizontal selector (next 7 days)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -391,8 +512,13 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
                 return InkWell(
                   onTap: isAvailable
                       ? () {
+                          if (_currentAppointmentId != null && _selectedSlot != slot) {
+                            _appointmentService.updateAppointmentStatus(_currentAppointmentId!, 'CANCELLED');
+                            _currentAppointmentId = null;
+                          }
                           setState(() {
                             _selectedSlot = slot;
+                            _bookingError = null;
                           });
                         }
                       : null,
@@ -536,7 +662,134 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
               ],
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
+
+          // Payment Form Card
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.cardDark : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Pago con Tarjeta', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    Row(
+                      children: [
+                        Icon(Icons.credit_card, size: 18, color: AppTheme.primaryDark),
+                        const SizedBox(width: 4),
+                        const Text('Seguro', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Quick test cards chips
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      ActionChip(
+                        avatar: const Icon(Icons.check_circle_outline, size: 14, color: Colors.green),
+                        label: const Text('Tarjeta Válida', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          setState(() {
+                            _cardNumberController.text = '4242 4242 4242 4242';
+                            _expController.text = '12/28';
+                            _cvcController.text = '123';
+                            _nameController.text = 'Ana Paciente';
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ActionChip(
+                        avatar: const Icon(Icons.error_outline, size: 14, color: Colors.orange),
+                        label: const Text('Simular Declinación', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          setState(() {
+                            _cardNumberController.text = '4000 0000 0000 0002';
+                            _expController.text = '10/27';
+                            _cvcController.text = '456';
+                            _nameController.text = 'Ana Paciente';
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Card Number Field
+                TextField(
+                  controller: _cardNumberController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Número de Tarjeta',
+                    hintText: '4242 4242 4242 4242',
+                    prefixIcon: const Icon(Icons.payment_outlined, size: 20),
+                    isDense: true,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Expiration & CVC Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _expController,
+                        keyboardType: TextInputType.datetime,
+                        decoration: InputDecoration(
+                          labelText: 'Vencimiento',
+                          hintText: 'MM/AA',
+                          prefixIcon: const Icon(Icons.date_range_outlined, size: 20),
+                          isDense: true,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _cvcController,
+                        keyboardType: TextInputType.number,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'CVC / CVV',
+                          hintText: '123',
+                          prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                          isDense: true,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Cardholder Name
+                TextField(
+                  controller: _nameController,
+                  keyboardType: TextInputType.name,
+                  decoration: InputDecoration(
+                    labelText: 'Nombre del Titular',
+                    hintText: 'Como aparece en la tarjeta',
+                    prefixIcon: const Icon(Icons.person_outline, size: 20),
+                    isDense: true,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
 
           // Actions
           Row(
@@ -564,7 +817,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
                   ),
                   child: _isBooking
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.textDark))
-                      : const Text('Confirmar consulta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      : Text('Pagar y Confirmar (\$${widget.psychologist.pricePerSession} MXN)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 ),
               ),
             ],

@@ -27,6 +27,7 @@ class _PsychologistScheduleScreenState extends State<PsychologistScheduleScreen>
   bool _isLoading = true;
   bool _isSaving = false;
   String? _errorMessage;
+  String _timeZone = 'America/Mexico_City';
 
   // Day mapping for backend DayOfWeek enum
   final List<Map<String, String>> _daysConfig = [
@@ -115,6 +116,7 @@ class _PsychologistScheduleScreenState extends State<PsychologistScheduleScreen>
       });
 
       if (res['success'] == true) {
+        _timeZone = res['timeZone'] ?? 'America/Mexico_City';
         final List<dynamic> list = res['data'];
         final Map<String, List<Map<String, dynamic>>> mapped = {};
         for (var day in _daysConfig) {
@@ -423,7 +425,7 @@ class _PsychologistScheduleScreenState extends State<PsychologistScheduleScreen>
           ),
           const SizedBox(height: 4),
           Text(
-            'Define tus días y rangos horarios. El backend generará automáticamente las citas disponibles de 50 min.',
+            'Define tus días, horarios y duración de sesión. Zona horaria de la agenda: $_timeZone.',
             style: TextStyle(
               fontSize: 12,
               color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,

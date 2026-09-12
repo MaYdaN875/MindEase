@@ -4,6 +4,7 @@ import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import 'patient_appointments_screen.dart';
 import 'patient_notifications_screen.dart';
+import 'patient_payment_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onNavigateToDirectory;
@@ -187,9 +188,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
 
-                    // Theme Switcher & Notifications Button
+                    // Theme Switcher, Payment History & Notifications Button
                     Row(
                       children: [
+                        IconButton(
+                          icon: const Icon(Icons.receipt_long_outlined),
+                          tooltip: 'Mis Pagos y Recibos',
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const PatientPaymentHistoryScreen()),
+                            );
+                          },
+                          style: IconButton.styleFrom(
+                            backgroundColor: isDark
+                                ? AppTheme.cardDark
+                                : Colors.white,
+                            foregroundColor: isDark
+                                ? AppTheme.textLight
+                                : AppTheme.textDark,
+                            elevation: 1,
+                            shadowColor: Colors.black.withValues(alpha: 0.05),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         IconButton(
                           icon: Icon(
                             widget.isDarkMode

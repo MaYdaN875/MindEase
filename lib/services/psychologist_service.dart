@@ -58,6 +58,7 @@ class PsychologistService {
         return {
           'success': true,
           'data': data['data']['availabilities'] as List<dynamic>,
+          'timeZone': data['data']['timeZone'],
         };
       }
       return {
