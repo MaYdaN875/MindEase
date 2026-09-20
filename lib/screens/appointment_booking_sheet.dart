@@ -42,6 +42,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
   final TextEditingController _nameController = TextEditingController(text: 'Titular de la Tarjeta');
   String? _receiptId;
   String? _currentAppointmentId;
+  bool _paymentAttempted = false;
 
   int _currentStep = 1; // 1 = Slot Selector, 2 = Confirm & Pay
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
@@ -94,9 +95,12 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
   }
 
   Future<void> _fetchSlotsForDate(DateTime date) async {
+    if (_isBooking) return;
     if (_currentAppointmentId != null) {
-      _appointmentService.updateAppointmentStatus(_currentAppointmentId!, 'CANCELLED');
+      final result = await _appointmentService.updateAppointmentStatus(_currentAppointmentId!, 'CANCELLED');
+      if (!mounted || result['success'] != true) return;
       _currentAppointmentId = null;
+      _paymentAttempted = false;
     }
     setState(() {
       _selectedDate = date;
@@ -130,7 +134,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
 
   @override
   void dispose() {
-    if (_currentAppointmentId != null && _receiptId == null) {
+    if (_currentAppointmentId != null && _receiptId == null && !_paymentAttempted) {
       _appointmentService.updateAppointmentStatus(_currentAppointmentId!, 'CANCELLED');
     }
     _cardNumberController.dispose();
@@ -141,7 +145,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
   }
 
   Future<void> _handleConfirmBooking() async {
-    if (_selectedSlot == null) return;
+    if (_selectedSlot == null || _isBooking) return;
 
     setState(() {
       _isBooking = true;
@@ -157,7 +161,10 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
         endAt: _selectedSlot!['endAt'],
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        // A reservation made after dismissal is reclaimed by server-side expiration.
+        return;
+      }
       if (aptRes['success'] != true) {
         setState(() {
           _isBooking = false;
@@ -199,6 +206,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
     }
 
     // 3. Process payment checkout
+    _paymentAttempted = true;
     final payRes = await _paymentService.checkout(
       appointmentId: appointmentId,
       cardNumber: _cardNumberController.text,
@@ -314,7 +322,9 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
+    return PopScope(
+      canPop: !_isBooking,
+      child: Container(
       height: MediaQuery.of(context).size.height * 0.88,
       decoration: BoxDecoration(
         color: isDark ? AppTheme.cardDark : Colors.white,
@@ -345,7 +355,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _isBooking ? null : () => Navigator.pop(context),
                 ),
               ],
             ),
@@ -357,6 +367,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
             child: _currentStep == 1 ? _buildStep1Slots(isDark) : _buildStep2Confirmation(isDark),
           ),
         ],
+      ),
       ),
     );
   }
@@ -511,10 +522,13 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
 
                 return InkWell(
                   onTap: isAvailable
-                      ? () {
+                      ? () async {
+                          if (_isBooking) return;
                           if (_currentAppointmentId != null && _selectedSlot != slot) {
-                            _appointmentService.updateAppointmentStatus(_currentAppointmentId!, 'CANCELLED');
+                            final result = await _appointmentService.updateAppointmentStatus(_currentAppointmentId!, 'CANCELLED');
+                            if (!mounted || result['success'] != true) return;
                             _currentAppointmentId = null;
+                            _paymentAttempted = false;
                           }
                           setState(() {
                             _selectedSlot = slot;
@@ -678,18 +692,19 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Pago con Tarjeta', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    const Text('Pago de prueba', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                     Row(
                       children: [
                         Icon(Icons.credit_card, size: 18, color: AppTheme.primaryDark),
                         const SizedBox(width: 4),
-                        const Text('Seguro', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
+                        const Text('SIMULADO', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
 
+                const Text('No ingreses tarjetas reales. Este formulario solo admite las tarjetas de prueba indicadas.'),
                 // Quick test cards chips
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -796,7 +811,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => setState(() => _currentStep = 1),
+                  onPressed: _isBooking ? null : () => setState(() => _currentStep = 1),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

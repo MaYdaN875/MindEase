@@ -133,6 +133,12 @@ class _PatientPaymentHistoryScreenState extends State<PatientPaymentHistoryScree
                             badgeColor = Colors.orange.withValues(alpha: 0.15);
                             badgeTextColor = Colors.orange.shade800;
                             badgeLabel = 'Reembolsado';
+                          } else if (p.status == 'REFUND_PENDING') {
+                            badgeColor = Colors.orange;
+                            badgeLabel = 'Reembolso pendiente';
+                          } else if (p.status == 'PROCESSING' || p.status == 'PENDING') {
+                            badgeColor = Colors.blueGrey;
+                            badgeLabel = 'Pago pendiente';
                           } else if (p.status == 'FAILED') {
                             badgeColor = Colors.red.withValues(alpha: 0.15);
                             badgeTextColor = Colors.red.shade700;

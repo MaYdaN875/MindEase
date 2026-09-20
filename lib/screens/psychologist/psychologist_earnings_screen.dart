@@ -59,6 +59,7 @@ class _PsychologistEarningsScreenState extends State<PsychologistEarningsScreen>
     final amountController = TextEditingController(text: available.toStringAsFixed(2));
     final bankController = TextEditingController(text: 'BBVA México');
     final clabeController = TextEditingController();
+    final idempotencyKey = PaymentService.newIdempotencyKey();
     final formKey = GlobalKey<FormState>();
     bool isSubmitting = false;
 
@@ -75,7 +76,7 @@ class _PsychologistEarningsScreenState extends State<PsychologistEarningsScreen>
               children: [
                 Icon(Icons.account_balance_wallet, color: AppTheme.primaryDark),
                 SizedBox(width: 8),
-                Text('Solicitar Retiro', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Simular retiro', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             content: Form(
@@ -125,7 +126,7 @@ class _PsychologistEarningsScreenState extends State<PsychologistEarningsScreen>
                       maxLength: 18,
                       decoration: InputDecoration(
                         labelText: 'CLABE Interbancaria (18 dígitos)',
-                        hintText: '012180015487965213',
+                        hintText: '032180000118359719 (prueba)',
                         counterText: '',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                         isDense: true,
@@ -156,6 +157,7 @@ class _PsychologistEarningsScreenState extends State<PsychologistEarningsScreen>
 
                         final amount = double.parse(amountController.text.trim());
                         final res = await _paymentService.requestPayout(
+                          idempotencyKey: idempotencyKey,
                           amount: amount,
                           bankName: bankController.text.trim(),
                           accountClabe: clabeController.text.trim(),
@@ -490,7 +492,7 @@ class _PsychologistEarningsScreenState extends State<PsychologistEarningsScreen>
                                         ),
                                         title: Text('Consulta - ${item.patientName}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                                         subtitle: Text(
-                                          '${_formatDate(item.createdAt)} • ${isAvailable ? 'Disponible' : 'En custodia'}',
+                                          '${_formatDate(item.createdAt)} • ${isAvailable ? 'Disponible' : item.fundStatus == 'REVIEW' ? 'En revisión' : 'Retenido (simulado)'}',
                                           style: const TextStyle(fontSize: 11, color: Colors.grey),
                                         ),
                                         trailing: Column(

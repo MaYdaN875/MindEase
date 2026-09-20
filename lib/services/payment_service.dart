@@ -1,10 +1,21 @@
 import 'dart:convert';
+import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
 import '../models/payment.dart';
 export '../models/payment.dart';
 
 class PaymentService {
+  static String newIdempotencyKey() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+  }
+
   static final PaymentService _instance = PaymentService._internal();
   factory PaymentService({http.Client? client}) =>
       client == null ? _instance : PaymentService._internal(client: client);
@@ -63,7 +74,15 @@ class PaymentService {
     String? idempotencyKey,
   }) async {
     try {
-      final headers = await _getHeaders(idempotencyKey: idempotencyKey);
+      const testCards = ['4242424242424242', '4000000000000002', '4000000000000005', '5555555555554444', '378282246310005'];
+      if (!testCards.contains(cardNumber.replaceAll(RegExp(r'\s+'), ''))) {
+        return {'success': false, 'message': 'Utiliza únicamente tarjetas de prueba. No ingreses datos bancarios reales.'};
+      }
+      final prefs = await SharedPreferences.getInstance();
+      final storageKey = 'payment_attempt_$appointmentId';
+      final attemptKey = idempotencyKey ?? prefs.getString(storageKey) ?? newIdempotencyKey();
+      await prefs.setString(storageKey, attemptKey);
+      final headers = await _getHeaders(idempotencyKey: attemptKey);
       final payload = <String, dynamic>{
         'appointmentId': appointmentId,
         'paymentMethod': paymentMethod,
@@ -75,9 +94,7 @@ class PaymentService {
           'holderName': holderName.trim(),
         },
       };
-      if (idempotencyKey != null) {
-        payload['idempotencyKey'] = idempotencyKey;
-      }
+      payload['idempotencyKey'] = attemptKey;
 
       final response = await _client.post(
         Uri.parse('$baseUrl/api/payments/checkout'),
@@ -86,13 +103,17 @@ class PaymentService {
       );
 
       final data = _parseResponse(response);
-      final isSuccess = response.statusCode == 200 || response.statusCode == 201;
+      final isSuccess = (response.statusCode == 200 || response.statusCode == 201) && data['data']?['payment']?['status'] == 'SUCCEEDED';
+      if (response.statusCode == 402 && data['definitiveFailure'] == true) {
+        await prefs.remove(storageKey);
+      }
 
       if (isSuccess && data['data'] != null && data['data']['payment'] != null) {
         return {
           'success': true,
           'message': data['message'] ?? 'Pago realizado con éxito',
           'payment': PaymentRecord.fromJson(data['data']['payment']),
+          'data': data['data'],
         };
       }
 
@@ -188,9 +209,18 @@ class PaymentService {
     required double amount,
     required String bankName,
     required String accountClabe,
+    required String idempotencyKey,
     String? notes,
   }) async {
     try {
+      final token = await _authService.getToken();
+      if (token == null) return {'success': false, 'message': 'Inicia sesión para solicitar un retiro'};
+      // JWT payload is used only to namespace local retry keys, never for authorization.
+      final subject = jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(token.split('.')[1]))))['userId'];
+      final prefs = await SharedPreferences.getInstance();
+      final storageKey = 'payout_attempt_${subject}_${amount.toStringAsFixed(2)}_${bankName.trim()}_${accountClabe.trim().substring(14)}';
+      final attemptKey = prefs.getString(storageKey) ?? idempotencyKey;
+      await prefs.setString(storageKey, attemptKey);
       final headers = await _getHeaders();
       final response = await _client.post(
         Uri.parse('$baseUrl/api/psychologists/me/payouts'),
@@ -199,12 +229,14 @@ class PaymentService {
           'amount': amount,
           'bankName': bankName.trim(),
           'accountClabe': accountClabe.trim(),
+          'idempotencyKey': attemptKey,
           if (notes != null && notes.isNotEmpty) 'notes': notes.trim(),
         }),
       );
 
       final data = _parseResponse(response);
       final isSuccess = response.statusCode == 201;
+      if (isSuccess || response.statusCode == 400 || response.statusCode == 403 || response.statusCode == 409) await prefs.remove(storageKey);
 
       if (isSuccess && data['data'] != null && data['data']['payout'] != null) {
         return {
