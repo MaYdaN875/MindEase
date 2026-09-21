@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'community/community_screen.dart';
 import '../services/appointment_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
@@ -422,18 +423,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        // Card 1: Join Group Chat
+                        // Card 1: Explorar canales
                         Expanded(
                           child: InkWell(
                             onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Joining group community chat...',
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityScreen()));
                             },
                             borderRadius: BorderRadius.circular(16),
                             child: Container(
@@ -503,7 +497,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'Join Group Chat',
+                                          'Explorar canales',
                                           style: theme.textTheme.labelLarge
                                               ?.copyWith(
                                                 color: Colors.white,

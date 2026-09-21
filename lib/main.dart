@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'models/psychologist.dart';
 import 'screens/directory_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/community/community_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/profile_screen.dart';
 import 'theme/app_theme.dart';
@@ -9,6 +10,7 @@ import 'services/auth_service.dart';
 import 'screens/application_status_screen.dart';
 import 'screens/psychologist/psychologist_main_layout.dart';
 import 'screens/patient_appointments_screen.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -174,7 +176,7 @@ class _AppRootState extends State<AppRoot> {
           });
         },
       ),
-      _buildCommunityScreen(context),
+      CommunityScreen(onToggleTheme: widget.onToggleTheme),
       _buildUserProfileScreen(context),
     ];
 
@@ -258,168 +260,6 @@ class _AppRootState extends State<AppRoot> {
               ),
             )
           : null,
-    );
-  }
-
-  // User Community Screen
-  Widget _buildCommunityScreen(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Community Discussion'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(widget.isDarkMode ? Icons.light_mode : Icons.dark_mode),
-            onPressed: widget.onToggleTheme,
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  colors: [AppTheme.primary, Color(0xFF0EA5E9)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'MindEase Safe Space',
-                    style: TextStyle(
-                      color: AppTheme.bgDark,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Share your feelings, read supportive stories, and find comfort in a fully anonymous peer-to-peer network.',
-                    style: TextStyle(
-                      color: AppTheme.bgDark.withValues(alpha: 0.8),
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Trending Topics',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            _buildTopicCard(
-              context,
-              'Anxiety coping techniques that actually work',
-              'Anxiety',
-              '240 active users',
-              Icons.healing,
-              isDark,
-            ),
-            _buildTopicCard(
-              context,
-              'Morning routine checklist for mindfulness',
-              'Mindfulness',
-              '189 active users',
-              Icons.wb_sunny_outlined,
-              isDark,
-            ),
-            _buildTopicCard(
-              context,
-              'Overcoming imposter syndrome at work',
-              'Self-Care',
-              '312 active users',
-              Icons.work_outline,
-              isDark,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopicCard(
-    BuildContext context,
-    String title,
-    String tag,
-    String activeUsers,
-    IconData icon,
-    bool isDark,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? AppTheme.borderSubtleDark : AppTheme.borderSubtleLight,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppTheme.primary, size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    tag,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  activeUsers,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-        ],
-      ),
     );
   }
 
@@ -507,6 +347,7 @@ class _AppRootState extends State<AppRoot> {
             _buildSettingTile(Icons.notifications_none_outlined, 'Notification Settings', isDark),
             _buildSettingTile(Icons.payment_outlined, 'Subscription & Billing', isDark),
             _buildSettingTile(Icons.help_outline, 'Help & Support', isDark),
+
 
             const SizedBox(height: 20),
 
