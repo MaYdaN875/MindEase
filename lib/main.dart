@@ -10,6 +10,7 @@ import 'services/auth_service.dart';
 import 'screens/application_status_screen.dart';
 import 'screens/psychologist/psychologist_main_layout.dart';
 import 'screens/patient_appointments_screen.dart';
+import 'screens/support/help_support_screen.dart';
 
 
 void main() {
@@ -346,7 +347,16 @@ class _AppRootState extends State<AppRoot> {
             _buildSettingTile(Icons.shield_outlined, 'Privacy & Safety', isDark),
             _buildSettingTile(Icons.notifications_none_outlined, 'Notification Settings', isDark),
             _buildSettingTile(Icons.payment_outlined, 'Subscription & Billing', isDark),
-            _buildSettingTile(Icons.help_outline, 'Help & Support', isDark),
+            _buildSettingTile(
+              Icons.help_outline,
+              'Help & Support',
+              isDark,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+                );
+              },
+            ),
 
 
             const SizedBox(height: 20),

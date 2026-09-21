@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../psychologist_profile_form_screen.dart';
+import '../support/help_support_screen.dart';
+
 
 class PsychologistProfileScreen extends StatefulWidget {
   final VoidCallback onOpenNotifications;
@@ -412,10 +414,30 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              const SizedBox(height: 12),
+              // Centro de Ayuda y Soporte
+              Material(
+                color: isDark ? AppTheme.cardDark : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.help_outline, color: AppTheme.primary),
+                  title: const Text('Centro de Ayuda y Soporte', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: const Text('Tickets de soporte, disputas y asistencia técnica', style: TextStyle(fontSize: 11)),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
 
               // Cerrar sesión
               TextButton.icon(
+
                 onPressed: widget.onLogout,
                 icon: const Icon(Icons.logout, color: AppTheme.error),
                 label: const Text('Cerrar sesión', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold)),
