@@ -3,6 +3,7 @@ import '../models/psychologist.dart';
 import '../services/psychologist_service.dart';
 import '../services/appointment_service.dart';
 import '../services/payment_service.dart';
+import '../services/stripe_payment_service.dart';
 import '../theme/app_theme.dart';
 
 class AppointmentBookingSheet extends StatefulWidget {
@@ -34,12 +35,8 @@ class AppointmentBookingSheet extends StatefulWidget {
 class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
   final PsychologistService _psychologistService = PsychologistService();
   final AppointmentService _appointmentService = AppointmentService();
-  final PaymentService _paymentService = PaymentService();
+  final StripePaymentService _paymentService = StripePaymentService();
 
-  final TextEditingController _cardNumberController = TextEditingController(text: '4242 4242 4242 4242');
-  final TextEditingController _expController = TextEditingController(text: '12/28');
-  final TextEditingController _cvcController = TextEditingController(text: '123');
-  final TextEditingController _nameController = TextEditingController(text: 'Titular de la Tarjeta');
   String? _receiptId;
   String? _currentAppointmentId;
   bool _paymentAttempted = false;
@@ -137,10 +134,6 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
     if (_currentAppointmentId != null && _receiptId == null && !_paymentAttempted) {
       _appointmentService.updateAppointmentStatus(_currentAppointmentId!, 'CANCELLED');
     }
-    _cardNumberController.dispose();
-    _expController.dispose();
-    _cvcController.dispose();
-    _nameController.dispose();
     super.dispose();
   }
 
@@ -195,26 +188,10 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
       _currentAppointmentId = appointmentId;
     }
 
-    // 2. Parse expiration date
-    final expParts = _expController.text.trim().split('/');
-    int expMonth = 12;
-    int expYear = 2028;
-    if (expParts.length == 2) {
-      expMonth = int.tryParse(expParts[0].trim()) ?? 12;
-      final yr = int.tryParse(expParts[1].trim()) ?? 28;
-      expYear = yr < 100 ? 2000 + yr : yr;
-    }
-
-    // 3. Process payment checkout
     _paymentAttempted = true;
-    final payRes = await _paymentService.checkout(
-      appointmentId: appointmentId,
-      cardNumber: _cardNumberController.text,
-      expMonth: expMonth,
-      expYear: expYear,
-      cvc: _cvcController.text,
-      holderName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : 'Titular de Tarjeta',
-    );
+    final payRes = widget.psychologist.pricePerSession == 0
+        ? <String, dynamic>{'success': true}
+        : await _paymentService.checkout(appointmentId);
 
     if (!mounted) return;
     setState(() {
@@ -278,7 +255,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
               Text(
                 isAutoConfirmed
                     ? 'Tu consulta con ${widget.psychologist.name} ha sido pagada y confirmada con éxito.'
-                    : 'Tu pago está resguardado en custodia y la solicitud fue enviada a ${widget.psychologist.name}. El profesional la verificará y confirmará desde su panel.',
+                    : 'Tu solicitud fue enviada a ${widget.psychologist.name}. El profesional la verificará y confirmará desde su panel.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13, color: Colors.grey),
               ),
@@ -669,7 +646,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Tu sesión cuenta con cifrado de extremo a extremo y garantía de confidencialidad.',
+                    'Los datos de tarjeta se introducen directamente en Stripe, no en MindEase.',
                     style: TextStyle(fontSize: 11, color: Colors.grey),
                   ),
                 ),
@@ -678,130 +655,17 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
           ),
           const SizedBox(height: 20),
 
-          // Payment Form Card
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isDark ? AppTheme.cardDark : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Pago de prueba', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                    Row(
-                      children: [
-                        Icon(Icons.credit_card, size: 18, color: AppTheme.primaryDark),
-                        const SizedBox(width: 4),
-                        const Text('SIMULADO', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                const Text('No ingreses tarjetas reales. Este formulario solo admite las tarjetas de prueba indicadas.'),
-                // Quick test cards chips
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      ActionChip(
-                        avatar: const Icon(Icons.check_circle_outline, size: 14, color: Colors.green),
-                        label: const Text('Tarjeta Válida', style: TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          setState(() {
-                            _cardNumberController.text = '4242 4242 4242 4242';
-                            _expController.text = '12/28';
-                            _cvcController.text = '123';
-                            _nameController.text = 'Ana Paciente';
-                          });
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      ActionChip(
-                        avatar: const Icon(Icons.error_outline, size: 14, color: Colors.orange),
-                        label: const Text('Simular Declinación', style: TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          setState(() {
-                            _cardNumberController.text = '4000 0000 0000 0002';
-                            _expController.text = '10/27';
-                            _cvcController.text = '456';
-                            _nameController.text = 'Ana Paciente';
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // Card Number Field
-                TextField(
-                  controller: _cardNumberController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Número de Tarjeta',
-                    hintText: '4242 4242 4242 4242',
-                    prefixIcon: const Icon(Icons.payment_outlined, size: 20),
-                    isDense: true,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Expiration & CVC Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _expController,
-                        keyboardType: TextInputType.datetime,
-                        decoration: InputDecoration(
-                          labelText: 'Vencimiento',
-                          hintText: 'MM/AA',
-                          prefixIcon: const Icon(Icons.date_range_outlined, size: 20),
-                          isDense: true,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _cvcController,
-                        keyboardType: TextInputType.number,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          labelText: 'CVC / CVV',
-                          hintText: '123',
-                          prefixIcon: const Icon(Icons.lock_outline, size: 20),
-                          isDense: true,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Cardholder Name
-                TextField(
-                  controller: _nameController,
-                  keyboardType: TextInputType.name,
-                  decoration: InputDecoration(
-                    labelText: 'Nombre del Titular',
-                    hintText: 'Como aparece en la tarjeta',
-                    prefixIcon: const Icon(Icons.person_outline, size: 20),
-                    isDense: true,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-              ],
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Pago seguro con Stripe (pruebas)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  SizedBox(height: 8),
+                  Text('Al continuar se abrira la pantalla de Stripe. Usa tarjetas de prueba, no tarjetas reales. La cita requiere aprobacion del profesional.'),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -832,7 +696,7 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
                   ),
                   child: _isBooking
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.textDark))
-                      : Text('Pagar y Confirmar (\$${widget.psychologist.pricePerSession} MXN)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      : Text('Pagar y Solicitar (\$${widget.psychologist.pricePerSession} MXN)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 ),
               ),
             ],
