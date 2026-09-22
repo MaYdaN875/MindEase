@@ -265,10 +265,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                     _service.mediaUri(c.coverImageUrl!) != null
                                 ? ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      _service
-                                          .mediaUri(c.coverImageUrl!)!
-                                          .toString(),
+                                    child: ProtectedCommunityImage(
+                                      service: _service,
+                                      url: c.coverImageUrl!,
                                       width: 56,
                                       height: 56,
                                       fit: BoxFit.cover,

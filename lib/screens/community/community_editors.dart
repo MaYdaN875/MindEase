@@ -362,7 +362,7 @@ class _CommunityPostEditorState extends State<CommunityPostEditor> {
               child: Padding(
                 padding: EdgeInsets.all(12),
                 child: Text(
-                  'Contenido psicoeducativo, no consultas individuales. Los adjuntos tienen URL pública incluso en borradores. No subas expedientes, datos personales ni información clínica.',
+                  'Contenido psicoeducativo, no consultas individuales. Los adjuntos de borradores requieren autorización y serán públicos al publicar. No subas expedientes, datos personales ni información clínica.',
                 ),
               ),
             ),
@@ -421,14 +421,12 @@ class _CommunityPostEditorState extends State<CommunityPostEditor> {
                 ),
               ),
             const Text(
-              'Quitar un adjunto de la publicación no elimina el archivo público del servidor.',
+              'Quitar un adjunto de la publicación no elimina el archivo almacenado en el servidor.',
             ),
             OutlinedButton.icon(
               onPressed: _busy || _media.length >= 5 ? null : _upload,
               icon: const Icon(Icons.attach_file),
-              label: Text(
-                'Subir adjunto público (${_media.length}/5, hasta 10 MB)',
-              ),
+              label: Text('Subir adjunto (${_media.length}/5, hasta 10 MB)'),
             ),
             Row(
               children: [

@@ -46,6 +46,31 @@ CommunityService service(Future<http.Response> Function(http.Request) handle) =>
     );
 
 void main() {
+  test('Private media requests a scoped download URL', () async {
+    const path = '/uploads/community/00000000-0000-0000-0000-000000000000.png';
+    final api = service((request) async {
+      expect(request.method, 'POST');
+      expect(request.url.path, '/api/media/access');
+      expect(request.headers['Authorization'], 'Bearer test-token');
+      expect(jsonDecode(request.body), {'url': path});
+      return ok({'url': '$path?access=download-ticket'});
+    });
+    final uri = await api.mediaAccessUri(path);
+    expect(uri.toString(), 'http://10.0.2.2:3000$path?access=download-ticket');
+  });
+
+  test('External media never receives the session token', () async {
+    final api = service((_) async => throw StateError('Unexpected API call'));
+    expect((await api.mediaAccessUri('https://example.test/image.png')).toString(),
+        'https://example.test/image.png');
+  });
+
+  test('Download responses cannot redirect to another origin', () async {
+    final api = service((_) async => ok({'url': 'https://example.test/file.png'}));
+    await expectLater(api.mediaAccessUri('/uploads/community/file.png'),
+        throwsA(isA<CommunityException>()));
+  });
+
   test('Models handle list and mutation envelopes', () {
     expect(CommunityCategory.fromJson(categoryJson).slug, 'mindfulness');
     expect(

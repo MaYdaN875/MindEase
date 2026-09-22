@@ -102,11 +102,19 @@ Future<void> openCommunityMedia(
   CommunityService service,
   PostMedia media,
 ) async {
-  final uri = service.mediaUri(media.url);
+  final Uri? uri;
+  try {
+    uri = await service.mediaAccessUri(media.url);
+  } catch (error) {
+    if (context.mounted) communityMessage(context, error);
+    return;
+  }
+  if (!context.mounted) return;
   if (uri == null) {
     communityMessage(context, 'Este recurso no tiene una URL segura.');
     return;
   }
+  final resourceHost = uri.host;
   if (media.type == 'IMAGE') {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -134,7 +142,7 @@ Future<void> openCommunityMedia(
           media.type == 'DOCUMENT' ? 'Abrir documento' : 'Abrir enlace',
         ),
         content: Text(
-          'Se abrirá un recurso externo de ${uri.host}. No compartas información clínica o personal.',
+          'Se abrirá un recurso externo de $resourceHost. No compartas información clínica o personal.',
         ),
         actions: [
           TextButton(
@@ -150,7 +158,8 @@ Future<void> openCommunityMedia(
     );
     if (accepted != true || !context.mounted) return;
     try {
-      if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && context.mounted) {
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+          context.mounted) {
         communityMessage(
           context,
           'No se encontró una aplicación para abrir el recurso.',
@@ -182,8 +191,9 @@ class CommunityMediaTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (media.type == 'IMAGE' && uri != null)
-              Image.network(
-                uri.toString(),
+              ProtectedCommunityImage(
+                service: service,
+                url: media.url,
                 height: 200,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => const SizedBox(
@@ -212,6 +222,63 @@ class CommunityMediaTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class ProtectedCommunityImage extends StatefulWidget {
+  final CommunityService service;
+  final String url;
+  final double? width, height;
+  final BoxFit? fit;
+  final ImageErrorWidgetBuilder? errorBuilder;
+  const ProtectedCommunityImage({
+    super.key,
+    required this.service,
+    required this.url,
+    this.width,
+    this.height,
+    this.fit,
+    this.errorBuilder,
+  });
+  @override
+  State<ProtectedCommunityImage> createState() =>
+      _ProtectedCommunityImageState();
+}
+
+class _ProtectedCommunityImageState extends State<ProtectedCommunityImage> {
+  late Future<Uri?> _uri;
+  @override
+  void initState() {
+    super.initState();
+    _uri = widget.service.mediaAccessUri(widget.url);
+  }
+
+  @override
+  void didUpdateWidget(covariant ProtectedCommunityImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url || oldWidget.service != widget.service) {
+      _uri = widget.service.mediaAccessUri(widget.url);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Uri?>(
+    future: _uri,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done) {
+        return SizedBox(width: widget.width, height: widget.height);
+      }
+      if (!snapshot.hasData) return const Icon(Icons.broken_image_outlined);
+      return Image.network(
+        snapshot.data.toString(),
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        errorBuilder:
+            widget.errorBuilder ??
+            (_, _, _) => const Icon(Icons.broken_image_outlined),
+      );
+    },
+  );
 }
 
 Future<void> reportCommunityContent(

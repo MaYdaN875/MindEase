@@ -52,6 +52,30 @@ class CommunityService {
     return uri;
   }
 
+  Future<Uri?> mediaAccessUri(String value) async {
+    final uri = mediaUri(value);
+    if (uri == null) return null;
+    final origin = Uri.parse(baseUrl);
+    if (uri.origin != origin.origin ||
+        !uri.path.startsWith('/uploads/community/')) {
+      return uri;
+    }
+    final token = await _token();
+    if (token == null) {
+      return uri; // Published files remain accessible to visitors.
+    }
+    final data = await _request(
+      'POST',
+      'media/access',
+      body: {'url': uri.path},
+    );
+    final signed = origin.resolve(data['url'] as String);
+    if (signed.origin != origin.origin || signed.path != uri.path) {
+      throw const CommunityException('Respuesta de archivo invalida.');
+    }
+    return signed;
+  }
+
   Future<JsonMap> _request(
     String method,
     String path, {
