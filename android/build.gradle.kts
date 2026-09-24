@@ -32,3 +32,13 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+// Jitsi Flutter 13.1.1 declares compileSdk 34 while its Media3 dependencies require 35.
+subprojects {
+    if (name == "jitsi_meet_flutter_sdk") {
+        plugins.withId("com.android.library") {
+            extensions.getByType<com.android.build.api.variant.LibraryAndroidComponentsExtension>()
+                .finalizeDsl { it.compileSdk = 35 }
+        }
+    }
+}

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/appointment_service.dart';
 import '../../models/appointment_status.dart';
-import '../../services/session_link.dart';
+import '../../services/video_service.dart';
 import 'clinical_notes_screen.dart';
 import '../../theme/app_theme.dart';
 
@@ -229,9 +229,9 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                   icon: const Icon(Icons.edit_note),
                   label: const Text('Notas clínicas privadas'),
                 ),
-              if (status == 'IN_PROGRESS' && appt['consultation']?['meetingUrl'] != null)
+              if (status == 'IN_PROGRESS')
                 OutlinedButton.icon(
-                  onPressed: () => openSessionLink(context, appt['consultation']['meetingUrl']),
+                  onPressed: () => VideoService.join(context, apptId),
                   icon: const Icon(Icons.open_in_new),
                   label: const Text('Abrir sesión virtual'),
                 ),
@@ -289,25 +289,16 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
   }
 
   Future<void> _startConsultation(String apptId, String patientName) async {
-    final linkController = TextEditingController();
-    final link = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Iniciar consulta'),
-        content: TextField(
-          controller: linkController,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(labelText: 'Enlace HTTPS de la sesión (opcional)', hintText: 'https://…'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Volver')),
-          TextButton(onPressed: () => Navigator.pop(ctx, linkController.text.trim()), child: const Text('Iniciar')),
-        ],
-      ),
-    );
-    // Dispose after the dialog route has finished its closing animation.
-    Future<void>.delayed(const Duration(milliseconds: 300), linkController.dispose);
-    if (link == null || !mounted) return;
+    if (!VideoService.supported) {
+      await VideoService.join(context, apptId);
+      return;
+    }
+    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Iniciar consulta'),
+      content: const Text('Se iniciará la consulta clínica y podrás entrar a Jitsi. Al salir de la llamada, finaliza la consulta aquí cuando corresponda.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Volver')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Iniciar'))],
+    ));
+    if (confirmed != true || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Iniciando sesión con $patientName...'),
@@ -316,7 +307,7 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
       ),
     );
 
-    final res = await _appointmentService.startConsultation(apptId, meetingUrl: link.isEmpty ? null : link);
+    final res = await _appointmentService.startConsultation(apptId);
     if (mounted) {
       if (res['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -330,6 +321,7 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
           _selectedFilter = 'En curso';
         });
         _fetchAppointments();
+        await VideoService.join(context, apptId);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

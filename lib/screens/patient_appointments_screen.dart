@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/appointment_service.dart';
 import '../models/appointment_status.dart';
-import '../services/session_link.dart';
+import '../services/video_service.dart';
 import 'patient_payment_history_screen.dart';
 import '../theme/app_theme.dart';
 
@@ -313,7 +313,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     final startAt = startAtStr != null ? DateTime.parse(startAtStr).toLocal() : null;
     final status = appointmentDisplayStatus(appt);
     final price = appt['price'] ?? 0;
-    final meetingUrl = appt['consultation']?['meetingUrl'];
+
 
     final formattedDate = startAt != null
         ? '${startAt.day}/${startAt.month}/${startAt.year} • ${startAt.hour.toString().padLeft(2, '0')}:${startAt.minute.toString().padLeft(2, '0')} hrs'
@@ -476,7 +476,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                     ],
                   ),
                   ElevatedButton.icon(
-                    onPressed: () => openSessionLink(context, meetingUrl),
+                    onPressed: () => VideoService.join(context, apptId),
                     icon: const Icon(Icons.videocam, size: 16),
                     label: const Text('Unirse a consulta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     style: ElevatedButton.styleFrom(
@@ -499,10 +499,10 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                     onPressed: () => _cancelAppointment(apptId),
                     child: const Text('Cancelar cita', style: TextStyle(color: AppTheme.error, fontSize: 13)),
                   ),
-                  if (meetingUrl != null && meetingUrl.isNotEmpty) ...[
+                  if (status == 'CONFIRMED') ...[
                     const SizedBox(width: 8),
                     ElevatedButton.icon(
-                      onPressed: () => openSessionLink(context, meetingUrl),
+                      onPressed: () => VideoService.join(context, apptId),
                       icon: const Icon(Icons.videocam, size: 16),
                       label: const Text('Entrar a sesión', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       style: ElevatedButton.styleFrom(

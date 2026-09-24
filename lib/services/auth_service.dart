@@ -1,6 +1,5 @@
 import 'dart:convert';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
+import '../config/api_config.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,17 +8,10 @@ class AuthService {
   factory AuthService() => _instance;
   AuthService._internal();
 
-  static const String _tokenKey = 'jwt_token';
+  // Keep local and hosted sessions isolated. Switching servers requires login.
+  static final String _tokenKey = 'jwt_token:${ApiConfig.baseUrl}';
 
-  String get baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:3000';
-    }
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000';
-    }
-    return 'http://localhost:3000';
-  }
+  String get baseUrl => ApiConfig.baseUrl;
 
   // Check if token exists
   Future<bool> hasToken() async {

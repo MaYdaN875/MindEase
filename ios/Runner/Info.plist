@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Usamos la cámara para tu consulta virtual con el profesional.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Usamos el micrófono para el audio de tu consulta virtual.</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
