@@ -1,0 +1,27 @@
+// Stripe embeds small React Native shims. Jitsi requires the real React Native
+// classes, so the shims must not share their package names. Generate an isolated
+// source copy under build/ instead of changing Flutter's shared pub cache.
+def isolatedSources = layout.buildDirectory.dir('generated/stripeIsolatedSources')
+def isolateStripeReact = tasks.register('isolateStripeReact', Sync) {
+    from('src/main/kotlin')
+    include '**/*.java', '**/*.kt'
+    into isolatedSources
+    filteringCharset = 'UTF-8'
+    filter { String line ->
+        line.replace('com.facebook.react', 'com.mindease.stripecompat.react')
+            .replace('com.facebook.proguard', 'com.mindease.stripecompat.proguard')
+    }
+}
+
+afterEvaluate {
+    // Both Java and Kotlin sources live in the upstream kotlin directory.
+    android.sourceSets.main.java.setSrcDirs([isolatedSources])
+    kotlin.sourceSets.main.kotlin.setSrcDirs([isolatedSources])
+    tasks.named('preBuild').configure { dependsOn isolateStripeReact }
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        dependsOn isolateStripeReact
+    }
+    tasks.withType(JavaCompile).configureEach {
+        dependsOn isolateStripeReact
+    }
+}

@@ -23,6 +23,12 @@ subprojects {
 // Keep this compatibility override scoped to the Stripe plugin.
 subprojects {
     if (name == "stripe_android") {
+        apply(from = rootProject.file("stripe-react-isolation.gradle"))
+        // Stripe Issuing uses Google's private provisioning SDK. MindEase only
+        // accepts payments; keep release lint enabled without this optional SDK.
+        configurations.configureEach {
+            exclude(group = "com.google.android.gms", module = "play-services-tapandpay")
+        }
         tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
             compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }

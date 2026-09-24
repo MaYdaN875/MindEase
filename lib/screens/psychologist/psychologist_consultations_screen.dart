@@ -24,8 +24,8 @@ class PsychologistConsultationsScreen extends StatefulWidget {
 class _PsychologistConsultationsScreenState extends State<PsychologistConsultationsScreen> {
   final AppointmentService _appointmentService = AppointmentService();
 
-  String _selectedFilter = 'Próximas';
-  final List<String> _filters = ['Solicitudes', 'Próximas', 'En curso', 'Finalizadas', 'Canceladas'];
+  String _selectedFilter = 'Todas';
+  final List<String> _filters = ['Todas', 'En curso', 'Solicitudes', 'Próximas', 'Finalizadas', 'Canceladas'];
 
   bool _isLoading = true;
   List<dynamic> _appointments = [];
@@ -342,8 +342,11 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
         content: Text('¿Deseas dar por concluida la sesión clínica con $patientName? Se registrará como completada.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Continuar sesión'),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await VideoService.join(context, apptId);
+            },
+            child: const Text('Volver a la llamada'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -388,21 +391,9 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final filteredAppointments = _appointments.where((appt) {
-      final status = appointmentDisplayStatus(appt);
-      if (_selectedFilter == 'Solicitudes') {
-        return status == 'PENDING';
-      } else if (_selectedFilter == 'Próximas') {
-        return status == 'CONFIRMED';
-      } else if (_selectedFilter == 'En curso') {
-        return status == 'IN_PROGRESS';
-      } else if (_selectedFilter == 'Finalizadas') {
-        return status == 'COMPLETED';
-      } else if (_selectedFilter == 'Canceladas') {
-        return status == 'CANCELLED';
-      }
-      return true;
-    }).toList();
+    final filteredAppointments = _appointments
+        .where((appt) => appointmentMatchesFilter(appt, _selectedFilter))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -446,18 +437,9 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                     child: Row(
                       children: _filters.map((filter) {
                         final isSelected = _selectedFilter == filter;
-                        int count = 0;
-                        if (filter == 'Solicitudes') {
-                          count = _appointments.where((a) => (a['status'] as String?)?.toUpperCase() == 'PENDING').length;
-                        } else if (filter == 'Próximas') {
-                          count = _appointments.where((a) => (a['status'] as String?)?.toUpperCase() == 'CONFIRMED').length;
-                        } else if (filter == 'En curso') {
-                          count = _appointments.where((a) => (a['status'] as String?)?.toUpperCase() == 'IN_PROGRESS').length;
-                        } else if (filter == 'Finalizadas') {
-                          count = _appointments.where((a) => (a['status'] as String?)?.toUpperCase() == 'COMPLETED').length;
-                        } else if (filter == 'Canceladas') {
-                          count = _appointments.where((a) => (a['status'] as String?)?.toUpperCase() == 'CANCELLED').length;
-                        }
+                        final count = _appointments
+                            .where((a) => appointmentMatchesFilter(a, filter))
+                            .length;
 
                         return Padding(
                           padding: const EdgeInsets.only(right: 8.0),
@@ -712,9 +694,9 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                                               ),
                                               const SizedBox(width: 8),
                                               ElevatedButton.icon(
-                                                onPressed: () => _showCompleteDialog(apptId, patientName),
-                                                icon: const Icon(Icons.check_circle_outline, size: 14),
-                                                label: const Text('Finalizar consulta', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                                onPressed: () => VideoService.join(context, apptId),
+                                                icon: const Icon(Icons.videocam, size: 14),
+                                                label: const Text('Volver a la llamada', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: const Color(0xFF10B981),
                                                   foregroundColor: Colors.white,

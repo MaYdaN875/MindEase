@@ -46,3 +46,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Stripe selects OkHttp 5; align Jitsi's URLConnection/cookie adapter too.
+    implementation(platform("com.squareup.okhttp3:okhttp-bom:5.3.2"))
+}

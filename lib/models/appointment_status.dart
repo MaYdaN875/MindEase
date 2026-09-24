@@ -4,3 +4,15 @@ String appointmentDisplayStatus(Map<dynamic, dynamic> appointment) {
   return status == 'CONFIRMED' && appointment['consultation']?['status'] == 'IN_PROGRESS'
       ? 'IN_PROGRESS' : status;
 }
+
+bool appointmentMatchesFilter(Map<dynamic, dynamic> appointment, String filter) {
+  final status = appointmentDisplayStatus(appointment);
+  return switch (filter) {
+    'Solicitudes' => status == 'PENDING',
+    'Próximas' => status == 'CONFIRMED',
+    'En curso' => status == 'IN_PROGRESS',
+    'Finalizadas' => status == 'COMPLETED',
+    'Canceladas' => status == 'CANCELLED',
+    _ => true,
+  };
+}
