@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/person_avatar.dart';
 import '../../services/psychologist_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
@@ -120,9 +121,8 @@ class _PsychologistDashboardScreenState extends State<PsychologistDashboardScree
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final doctorName = _dashboardData?['doctor']?['name'] ?? widget.userProfile?['name'] ?? 'Dr. Aris';
-    final avatarUrl = widget.userProfile?['avatarUrl'] ??
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuDe8aEnYEe0WkRD0hX2zIU3SqmhO0aIVPGKUcNIFi9kkdObEmglpr4-2LkhXTxd55O7ZItBatuFjfkDn8oxq0b4uKi2uSlIJZftT68sDwYbHM73zXDmi_t_EvePkMS8MqkPb0BqU1gdiROK4NCLm7xRVKvXZFruCG2pLGEeJQel4VWtvtx2JUhH0notJAq3U-ssAR0Hb_8Tg-LTdiFYUxAD94fvn8DPN6sqre-t4AINClnPHqqZO55UXA';
+    final doctorName = _dashboardData?['doctor']?['name'] ?? widget.userProfile?['name'] ?? 'Mi cuenta';
+    final avatarUrl = widget.userProfile?['psychologistProfile']?['photoUrl'];
 
     final stats = _dashboardData?['stats'] as Map<String, dynamic>?;
     final upcomingCount = stats?['upcomingCount']?.toString() ?? '0';
@@ -139,18 +139,7 @@ class _PsychologistDashboardScreenState extends State<PsychologistDashboardScree
         titleSpacing: 16,
         title: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppTheme.primary, width: 2),
-                image: DecorationImage(
-                  image: NetworkImage(avatarUrl),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
+            PersonAvatar(name: doctorName, photoUrl: avatarUrl, size: 40),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

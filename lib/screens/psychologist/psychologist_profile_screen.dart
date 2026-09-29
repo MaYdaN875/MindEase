@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/person_avatar.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../psychologist_profile_form_screen.dart';
@@ -70,9 +71,8 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final doctorName = widget.userProfile?['name'] ?? 'Dr. Alejandro Torres';
-    final avatarUrl = widget.userProfile?['avatarUrl'] ??
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuBVs8tIfuOwuiiM-Jm-RNLgqdr8y0XfiRuGHeVo2ftxGEBO3ELLyb399uhfqzzNCY6cFQbCw6_XflUCBZQxmXV9XUuQuFlNJRv4G930tsKTwqHY9YhTaBxMCgjwlpZnX0vn3JxLr0W8eRACOBZZCnyM9qyHdeZ4hrKp38VF7ezCzcfqITwxmviFLDSnDMDfaXPu_cMZ7EQYa5r1TDfPPLjGUN8wcewpo7vnMM-EuiyfrvReGwfyR-AWmw';
+    final doctorName = widget.userProfile?['name'] ?? 'Mi perfil';
+    final avatarUrl = widget.userProfile?['psychologistProfile']?['photoUrl'];
 
     return Scaffold(
       appBar: AppBar(
@@ -116,18 +116,7 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
                   children: [
                     Stack(
                       children: [
-                        Container(
-                          width: 96,
-                          height: 96,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3), width: 4),
-                            image: DecorationImage(
-                              image: NetworkImage(avatarUrl),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
+                        PersonAvatar(name: doctorName, photoUrl: avatarUrl, size: 96),
                         Positioned(
                           bottom: 0,
                           right: 0,

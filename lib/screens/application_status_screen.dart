@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/person_avatar.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import 'psychologist_profile_form_screen.dart';
@@ -125,8 +126,7 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final avatarUrl = _userProfile?['avatarUrl'] ??
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuBrEb52c2ga1R7fwtmJ7uJd9yS9PH5Tsap_JfEj0dsur64-OC1T6ta1TEt4WQuWm3TNdpsmuNJ_ZoyGZwKa0cNPu705cOQGewftc1OFpixgmyUaGR3M6EJj5ASx0yuqY8rdXzqvNy1K2A7aZ0tbleng9LDVkLrP5nay5-8b4eds3GUUnzIiuko1EaMsvpavG31f_M_OY2j8pNSwaV_35EgwrMx7x2uiZtyz7o988s8GSiIjRvvQe0e7jQ';
+    final avatarUrl = _userProfile?['psychologistProfile']?['photoUrl'];
 
     if (_isLoading) {
       return const Scaffold(
@@ -140,19 +140,7 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
       appBar: AppBar(
         title: const Text('Estados de Perfil'),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: AppTheme.primary, width: 1.5),
-              image: DecorationImage(
-                image: NetworkImage(avatarUrl),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
+          PersonAvatar(name: _userProfile?['name'] ?? '', photoUrl: avatarUrl, size: 36),
           IconButton(
             icon: const Icon(Icons.logout, color: AppTheme.error),
             onPressed: widget.onLogout,

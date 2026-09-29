@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'review_screen.dart';
+import '../widgets/person_avatar.dart';
+import 'chat/private_chat_screen.dart';
 import '../services/appointment_service.dart';
 import '../models/appointment_status.dart';
 import '../services/video_service.dart';
@@ -150,6 +153,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
         title: const Text('Mis Consultas'),
         centerTitle: true,
         actions: [
+          IconButton(tooltip: 'Mensajes privados', icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivateChatInbox()))),
           IconButton(
             icon: const Icon(Icons.receipt_long_outlined),
             tooltip: 'Mis Recibos y Pagos',
@@ -335,9 +340,6 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       statusLabel = 'EN CURSO';
     }
 
-    final initials = doctorName.trim().isNotEmpty
-        ? doctorName.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase()
-        : 'DR';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -371,13 +373,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                          CircleAvatar(
-                            backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
-                            child: Text(
-                              initials,
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 13),
-                            ),
-                          ),
+                          PersonAvatar(name: doctorName, photoUrl: appt['psychologist']?['photoUrl']),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -461,6 +457,13 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             ),
           ),
 
+          if (status == 'COMPLETED') Padding(
+            padding: const EdgeInsets.all(12),
+            child: OutlinedButton.icon(icon: const Icon(Icons.star_outline),
+              label: const Text('Calificar / ver mi reseña'),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => ReviewScreen(appointmentId: apptId)))),
+          ),
           if (status == 'IN_PROGRESS') ...[
             Divider(height: 1, color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
             Padding(

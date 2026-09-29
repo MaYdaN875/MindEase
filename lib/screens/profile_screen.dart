@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../widgets/person_avatar.dart';
+import '../services/review_service.dart';
+import 'review_screen.dart';
 import '../models/psychologist.dart';
 import '../theme/app_theme.dart';
 import 'appointment_booking_sheet.dart';
@@ -18,6 +21,18 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  double? _rating;
+  int? _reviewsCount;
+  @override
+  void initState() { super.initState(); _loadRating(); }
+  Future<void> _loadRating() async {
+    final service = ReviewService();
+    try {
+      final data = await service.request('/psychologists/${widget.psychologist.id}', public: true);
+      if (mounted) setState(() { _rating = (data['rating'] as num?)?.toDouble(); _reviewsCount = data['reviewsCount']; });
+    } catch (_) { /* The reviews section provides retry and error feedback. */ }
+    finally { service.dispose(); }
+  }
   int _selectedDateIndex = 0;
   String _selectedTime = '09:00 AM';
 
@@ -87,21 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       // Avatar with verified badge
                       Stack(
                         children: [
-                          Container(
-                            width: 128,
-                            height: 128,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: AppTheme.primary.withOpacity(0.2),
-                                width: 4,
-                              ),
-                              image: DecorationImage(
-                                image: NetworkImage(doc.profileImageUrl),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
+                          PersonAvatar(name: doc.name, photoUrl: doc.profileImageUrl, size: 128),
                           Positioned(
                             bottom: 2,
                             right: 2,
@@ -152,12 +153,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const Icon(Icons.star, color: Colors.amber, size: 16),
                           const SizedBox(width: 4),
                           Text(
-                            doc.rating.toString(),
+                            (_reviewsCount ?? doc.reviewsCount) == 0 ? 'Sin calificaciones' : (_rating ?? doc.rating).toStringAsFixed(1),
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '(${doc.reviewsCount} reviews)',
+                            '(${_reviewsCount ?? doc.reviewsCount} reviews)',
                             style: TextStyle(
                               fontSize: 13,
                               color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
@@ -443,117 +444,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Reviews',
+                            'Reseñas',
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontSize: 18,
                             ),
                           ),
-                          TextButton(
-                            onPressed: () {},
-                            child: const Text(
-                              'See All',
-                              style: TextStyle(
-                                color: AppTheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+
                         ],
                       ),
                       const SizedBox(height: 4),
                       
-                      // Reviews Lists
-                      Column(
-                        children: doc.reviews.map((review) {
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isDark ? AppTheme.cardDark : Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isDark ? AppTheme.borderSubtleDark : AppTheme.borderSubtleLight,
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        // Initials Circle
-                                        Container(
-                                          width: 36,
-                                          height: 36,
-                                          alignment: Alignment.center,
-                                          decoration: BoxDecoration(
-                                            color: AppTheme.primary.withOpacity(0.2),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Text(
-                                            review.initials,
-                                            style: const TextStyle(
-                                              color: AppTheme.primary,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              review.name,
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            Row(
-                                              children: List.generate(5, (starIdx) {
-                                                final floorRating = review.rating.floor();
-                                                final isFull = starIdx < floorRating;
-                                                final isHalf = !isFull && (starIdx == floorRating) && (review.rating % 1.0 > 0);
-                                                
-                                                return Icon(
-                                                  isFull 
-                                                      ? Icons.star 
-                                                      : (isHalf ? Icons.star_half : Icons.star_border),
-                                                  color: Colors.amber,
-                                                  size: 12,
-                                                );
-                                              }),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    Text(
-                                      review.timeAgo,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  review.comment,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textMediumLight,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
+                      PublicReviews(key: ValueKey(doc.id), psychologistId: doc.id),
                     ],
                   ),
                 ),

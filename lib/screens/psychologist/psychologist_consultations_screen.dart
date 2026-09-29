@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../chat/private_chat_screen.dart';
 import '../../services/appointment_service.dart';
 import '../../models/appointment_status.dart';
 import '../../services/video_service.dart';
@@ -397,6 +398,8 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(tooltip: 'Mensajes privados', icon: const Icon(Icons.chat_bubble_outline),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivateChatInbox()))),
         title: const Text('Consultas Clínicas'),
         centerTitle: false,
         actions: [

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'widgets/person_avatar.dart';
 import 'models/psychologist.dart';
 import 'screens/directory_screen.dart';
 import 'screens/home_screen.dart';
@@ -285,27 +286,14 @@ class _AppRootState extends State<AppRoot> {
         child: Column(
           children: [
             const SizedBox(height: 12),
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppTheme.primary, width: 3),
-                image: const DecorationImage(
-                  image: NetworkImage(
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuC4ndZi-BfIgVltO1mL9K7CFwp_OaaCL2l8BCHda94RG3z5E-lIvgVAXDcRvIUNhsThiQLQPlhUJRIhv0V7c3qQYntjIv8rC8YZxz5Fykp1QEdFe0A8XQSWk-HHPNlZj-UKEHkFh_ttSq75W3w8FpUM3a-EFoAAW0Doc_E00aXDpPMCGEi-xmyc2yCZSmU8BcBGYgXIxLzI8GZlJGNECwAP0aPa83tWcyhdne_Mm-knZnk5268zCLeTlzUyyzn5V_P_6y-X5RnS53a0',
-                  ),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
+            PersonAvatar(name: _currentUser?['name'] ?? '', photoUrl: _currentUser?['photoUrl'] ?? _currentUser?['psychologistProfile']?['photoUrl'], size: 100),
             const SizedBox(height: 16),
             Text(
-              _currentUser?['name'] ?? 'Alex Rivers',
+              _currentUser?['name'] ?? 'Mi cuenta',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             Text(
-              _currentUser?['email'] ?? 'Member since Oct 2025',
+              _currentUser?['email'] ?? '',
               style: TextStyle(
                 fontSize: 13,
                 color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,

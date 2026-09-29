@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../widgets/person_avatar.dart';
 import 'community/community_screen.dart';
 import '../services/appointment_service.dart';
 import '../services/notification_service.dart';
@@ -26,6 +28,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String? _selectedMood;
+  Map<String, dynamic>? _user;
+  Future<void> _loadUser() async {
+    final result = await AuthService().getProfile();
+    if (mounted && result['success'] == true) setState(() => _user = result['data']);
+  }
   final AppointmentService _appointmentService = AppointmentService();
   final NotificationService _notificationService = NotificationService();
   Map<String, dynamic>? _upcomingAppointment;
@@ -43,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _loadUser();
     _fetchUpcomingAppointment();
     _fetchNotificationsCount();
   }
@@ -144,20 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   children: [
                     // Profile Avatar
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppTheme.primary, width: 2),
-                        image: const DecorationImage(
-                          image: NetworkImage(
-                            'https://lh3.googleusercontent.com/aida-public/AB6AXuC4ndZi-BfIgVltO1mL9K7CFwp_OaaCL2l8BCHda94RG3z5E-lIvgVAXDcRvIUNhsThiQLQPlhUJRIhv0V7c3qQYntjIv8rC8YZxz5Fykp1QEdFe0A8XQSWk-HHPNlZj-UKEHkFh_ttSq75W3w8FpUM3a-EFoAAW0Doc_E00aXDpPMCGEi-xmyc2yCZSmU8BcBGYgXIxLzI8GZlJGNECwAP0aPa83tWcyhdne_Mm-knZnk5268zCLeTlzUyyzn5V_P_6y-X5RnS53a0',
-                          ),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
+                    PersonAvatar(name: _user?['name'] ?? '', photoUrl: _user?['photoUrl'] ?? _user?['psychologistProfile']?['photoUrl']),
                     const SizedBox(width: 12),
 
                     // Welcome Title
@@ -166,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Good morning,',
+                            'Hola,',
                             style: TextStyle(
                               fontSize: 12,
                               color: isDark
@@ -176,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           Text(
-                            'Angel Brambila',
+                            _user?['name'] ?? 'Mi cuenta',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -923,7 +918,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final psychologist = appointment['psychologist'];
     final psyUser = psychologist is Map ? psychologist['user'] : null;
     final psyName = psyUser is Map
-        ? 'Dr. ${(psyUser['name'] ?? '').toString().trim()} ${(psyUser['lastName'] ?? '').toString().trim()}'.trim()
+        ? (psyUser['name'] ?? '').toString().trim()
         : 'Psicólogo Especialista';
     final specialty = (psychologist is Map && psychologist['specialty'] != null && psychologist['specialty'].toString().isNotEmpty)
         ? psychologist['specialty'].toString()

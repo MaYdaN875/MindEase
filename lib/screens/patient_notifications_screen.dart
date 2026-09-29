@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'review_screen.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import 'patient_appointments_screen.dart';
@@ -79,6 +80,11 @@ class _PatientNotificationsScreenState extends State<PatientNotificationsScreen>
     final type = notif['type'];
     final referenceId = notif['referenceId'];
 
+    if (referenceId != null && type == 'CONSULTATION_COMPLETED') {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReviewScreen(appointmentId: referenceId.toString())));
+      if (mounted) _fetchNotifications();
+      return;
+    }
     if (referenceId != null &&
         (type == 'APPOINTMENT_REQUEST' ||
          type == 'APPOINTMENT_CONFIRMED' ||

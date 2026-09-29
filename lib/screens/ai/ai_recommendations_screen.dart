@@ -227,12 +227,10 @@ class AIRecommendationsScreen extends StatelessWidget {
       id: psychItem.id,
       name: psychItem.name,
       title: psychItem.academicBackground ?? 'Psicólogo Clínico Verificado',
-      imageUrl: psychItem.photoUrl ??
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuBVs8tIfuOwuiiM-Jm-RNLgqdr8y0XfiRuGHeVo2ftxGEBO3ELLyb399uhfqzzNCY6cFQbCw6_XflUCBZQxmXV9XUuQuFlNJRv4G930tsKTwqHY9YhTaBxMCgjwlpZnX0vn3JxLr0W8eRACOBZZCnyM9qyHdeZ4hrKp38VF7ezCzcfqITwxmviFLDSnDMDfaXPu_cMZ7EQYa5r1TDfPPLjGUN8wcewpo7vnMM-EuiyfrvReGwfyR-AWmw',
-      profileImageUrl: psychItem.photoUrl ??
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuBVs8tIfuOwuiiM-Jm-RNLgqdr8y0XfiRuGHeVo2ftxGEBO3ELLyb399uhfqzzNCY6cFQbCw6_XflUCBZQxmXV9XUuQuFlNJRv4G930tsKTwqHY9YhTaBxMCgjwlpZnX0vn3JxLr0W8eRACOBZZCnyM9qyHdeZ4hrKp38VF7ezCzcfqITwxmviFLDSnDMDfaXPu_cMZ7EQYa5r1TDfPPLjGUN8wcewpo7vnMM-EuiyfrvReGwfyR-AWmw',
-      rating: 5.0,
-      reviewsCount: 18,
+      imageUrl: psychItem.photoUrl ?? '',
+      profileImageUrl: psychItem.photoUrl ?? '',
+      rating: 0,
+      reviewsCount: 0,
       durationMinutes: 50,
       pricePerSession: psychItem.consultationPrice,
       patients: '100+',

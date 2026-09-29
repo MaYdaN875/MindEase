@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/person_avatar.dart';
 import '../models/psychologist.dart';
 import '../services/psychologist_service.dart';
 import '../theme/app_theme.dart';
@@ -20,6 +21,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
   final PsychologistService _psychologistService = PsychologistService();
 
   String _selectedCategory = 'All';
+  bool _loading = true;
+  String? _loadError;
   List<Psychologist> _allPsychologists = [];
   List<Psychologist> _filteredPsychologists = [];
 
@@ -34,17 +37,20 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
   @override
   void initState() {
     super.initState();
-    _allPsychologists = Psychologist.list;
+    _allPsychologists = [];
     _filteredPsychologists = _allPsychologists;
     _searchController.addListener(_applyFilters);
     _loadBackendPsychologists();
   }
 
   Future<void> _loadBackendPsychologists() async {
+    setState(() { _loading = true; _loadError = null; });
     final res = await _psychologistService.getVerifiedPsychologists();
+    if (!mounted) return;
+    setState(() { _loading = false; _loadError = res['success'] == true ? null : 'No se pudo cargar el directorio.'; });
     if (res['success'] == true && mounted) {
       final List<dynamic> list = res['data'];
-      if (list.isNotEmpty) {
+      {
         final List<Psychologist> fetched = list.map((item) {
           final user = item['user'] ?? {};
           final specialtiesList = (item['specialties'] as List<dynamic>?)
@@ -57,16 +63,14 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
             id: item['id'] ?? user['id'] ?? 'doc',
             name: user['name'] ?? 'Psicólogo Verificado',
             title: item['academicBackground'] ?? 'Psicólogo Clínico',
-            imageUrl: item['photoUrl'] ??
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuBVs8tIfuOwuiiM-Jm-RNLgqdr8y0XfiRuGHeVo2ftxGEBO3ELLyb399uhfqzzNCY6cFQbCw6_XflUCBZQxmXV9XUuQuFlNJRv4G930tsKTwqHY9YhTaBxMCgjwlpZnX0vn3JxLr0W8eRACOBZZCnyM9qyHdeZ4hrKp38VF7ezCzcfqITwxmviFLDSnDMDfaXPu_cMZ7EQYa5r1TDfPPLjGUN8wcewpo7vnMM-EuiyfrvReGwfyR-AWmw',
-            profileImageUrl: item['photoUrl'] ??
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuBVs8tIfuOwuiiM-Jm-RNLgqdr8y0XfiRuGHeVo2ftxGEBO3ELLyb399uhfqzzNCY6cFQbCw6_XflUCBZQxmXV9XUuQuFlNJRv4G930tsKTwqHY9YhTaBxMCgjwlpZnX0vn3JxLr0W8eRACOBZZCnyM9qyHdeZ4hrKp38VF7ezCzcfqITwxmviFLDSnDMDfaXPu_cMZ7EQYa5r1TDfPPLjGUN8wcewpo7vnMM-EuiyfrvReGwfyR-AWmw',
-            rating: 5.0,
-            reviewsCount: 24,
+            imageUrl: item['photoUrl'] ?? '',
+            profileImageUrl: item['photoUrl'] ?? '',
+            rating: (item['rating'] as num?)?.toDouble() ?? 0,
+            reviewsCount: (item['reviewsCount'] as num?)?.toInt() ?? 0,
             durationMinutes: 50,
             pricePerSession: (item['consultationPrice'] as num?)?.toInt() ?? 350,
-            patients: '150+',
-            experience: item['experience'] ?? '5 años',
+            patients: '—',
+            experience: item['experience'] ?? 'No especificada',
             languages: item['languages'] ?? 'Español',
             about: item['description'] ?? 'Especialista en apoyo psicológico personalizado.',
             specialties: specialtiesList,
@@ -76,8 +80,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
         }).toList();
 
         setState(() {
-          // Merge backend psychologists at top
-          _allPsychologists = [...fetched, ...Psychologist.list];
+          _allPsychologists = fetched;
           _applyFilters();
         });
       }
@@ -172,20 +175,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
-                          image: const DecorationImage(
-                            image: NetworkImage(
-                              'https://lh3.googleusercontent.com/aida-public/AB6AXuCX79pv4KMKWyo9hVfl29b87SbikPmbrNFq9g5Or7dhvrwwOa9PAeYmdNu_XM7qT_byEDcwpi2dphfdZAXlLKT3cw5w5Zgek7Jp6JOG_FnFmO4HvYpfd2CM4_U2K9jn4EB7a0sDUwiOcCtLiHmNJlU2OU88QZgRSPv6BgT52GFQekokXI_gT8fBymh1k8F8da6HQ4bU3zGzR9sGrsxjeisg3lHLq2lGODbnCXNmnno_eKH-1vBlqVth65x2BJNcfj-Ej84CrEqx1nYy',
-                            ),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
+                      const AccountAvatar(size: 32),
                     ],
                   ),
                 ],
@@ -315,7 +305,10 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
 
             // Directory list
             Expanded(
-              child: _filteredPsychologists.isEmpty
+              child: _loading ? const Center(child: CircularProgressIndicator())
+                  : _loadError != null ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(_loadError!), TextButton(onPressed: _loadBackendPsychologists, child: const Text('Reintentar')),
+                  ])) : _filteredPsychologists.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -327,7 +320,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'No specialists found',
+                            'No se encontraron profesionales',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -335,7 +328,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                             ),
                           ),
                           Text(
-                            'Try modifying your search or filters.',
+                            'Prueba otra búsqueda o categoría.',
                             style: TextStyle(
                               fontSize: 13,
                               color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
@@ -375,17 +368,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   // Image
-                                  Container(
-                                    width: 90,
-                                    height: 90,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      image: DecorationImage(
-                                        image: NetworkImage(psychologist.imageUrl),
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  ),
+                                  PersonAvatar(name: psychologist.name, photoUrl: psychologist.imageUrl, size: 90),
                                   const SizedBox(width: 14),
                                   
                                   // Details Column
@@ -438,7 +421,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                   ),
                                                   const SizedBox(width: 2),
                                                   Text(
-                                                    psychologist.rating.toString(),
+                                                    psychologist.reviewsCount == 0 ? 'Sin calificaciones' : psychologist.rating.toStringAsFixed(1),
                                                     style: const TextStyle(
                                                       fontSize: 11,
                                                       fontWeight: FontWeight.bold,
