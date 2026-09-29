@@ -1,5 +1,12 @@
 # Chat privado — primer bloque funcional
 
+## Actualización 25/09/2026
+
+El módulo ahora incluye contacto previo separado. Ver [CONTACT_CHAT.md](CONTACT_CHAT.md).
+La regla de seguimiento de siete días fue sustituida: las sesiones completadas,
+canceladas o fuera de su horario final quedan en lectura. Se conserva el historial.
+Las notificaciones de mensajes ahora permiten abrir la bandeja.
+
 ## Alcance
 
 - Texto persistente por cita, no un canal de Community ni el chat interno de Jitsi.
@@ -19,8 +26,8 @@
 
 ## Reglas
 
-La política inicial es chat habilitado desde CONFIRMED y seguimiento hasta siete
-días después del endAt de la cita, también si pasa a COMPLETED. Requiere ambas
+La política actual habilita escritura desde CONFIRMED hasta endAt, mientras no
+pase a COMPLETED/CANCELLED. No hay seguimiento escrito posterior dentro de la sesión. Requiere ambas
 cuentas ACTIVE, profesional VERIFICADO y rol PSYCHOLOGIST_VERIFIED. Una cita con
 precio necesita pago SUCCEEDED coincidente; las gratuitas no generan pagos.
 No se modifica el precio, agenda, disponibilidad ni estados para abrir el chat.

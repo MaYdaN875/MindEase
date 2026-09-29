@@ -4,8 +4,9 @@ import 'package:http/http.dart' as http;
 import 'auth_service.dart';
 
 class PrivateChatService {
-  PrivateChatService({http.Client? client}) : _client = client ?? http.Client();
+  PrivateChatService({http.Client? client, this.preBooking = false}) : _client = client ?? http.Client();
   final http.Client _client;
+  final bool preBooking;
   void dispose() => _client.close();
 
   static String clientId() {
@@ -21,7 +22,7 @@ class PrivateChatService {
     final auth = AuthService();
     final token = await auth.getToken();
     if (token == null) throw Exception('Inicia sesión para acceder al chat.');
-    final uri = Uri.parse('${auth.baseUrl}/api/chats$path');
+    final uri = Uri.parse('${auth.baseUrl}/api/${preBooking ? 'conversations' : 'chats'}$path');
     final headers = {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'};
     final response = await (body == null
         ? _client.get(uri, headers: headers)

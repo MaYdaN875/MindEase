@@ -1,237 +1,154 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import 'ai_pending_message.dart';
 
 class AIService {
   static final AIService _instance = AIService._internal();
   factory AIService() => _instance;
   AIService._internal();
-
   final AuthService _authService = AuthService();
-
+  final AIPendingMessages _pending = AIPendingMessages();
+  String? _lastToken;
   String get baseUrl => _authService.baseUrl;
 
-  Future<Map<String, String>> _getHeaders() async {
-    final token = await _authService.getToken();
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-    };
-    if (token != null) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-    return headers;
-  }
+  String? pendingDraft(String sessionId) => _pending.get(sessionId)?.text;
 
-  Map<String, dynamic> _parseResponse(http.Response response) {
+  Future<Map<String, dynamic>> _request(
+    String method,
+    String path, {
+    Map<String, dynamic>? body,
+    bool inference = false,
+  }) async {
     try {
-      final body = response.body.trim();
-      if (body.startsWith('<!DOCTYPE') || body.startsWith('<html') || body.startsWith('<pre')) {
-        return {
-          'success': false,
-          'message':
-              'El servidor backend devolvió una página HTML en lugar de JSON (HTTP ${response.statusCode}).',
-        };
+      final token = await _authService.getToken();
+      if (_lastToken != token) {
+        _pending.clear();
+        _lastToken = token;
       }
-      final data = jsonDecode(body);
-      if (data is Map<String, dynamic>) {
-        return data;
-      }
-      return {'success': false, 'message': 'Respuesta no válida del servidor'};
-    } catch (e) {
+      final headers = {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      };
+      final uri = Uri.parse('$baseUrl/api/ai/orientation$path');
+      final Future<http.Response> call = switch (method) {
+        'GET' => http.get(uri, headers: headers),
+        'DELETE' => http.delete(uri, headers: headers),
+        _ => http.post(
+          uri,
+          headers: headers,
+          body: body == null ? null : jsonEncode(body),
+        ),
+      };
+      final response = await call.timeout(
+        Duration(seconds: inference ? 75 : 20),
+      );
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) throw const FormatException();
+      return {
+        ...decoded,
+        'success':
+            response.statusCode >= 200 &&
+            response.statusCode < 300 &&
+            decoded['status'] == 'success',
+        'statusCode': response.statusCode,
+      };
+    } on TimeoutException {
       return {
         'success': false,
-        'message': 'Error al procesar respuesta del servidor (HTTP ${response.statusCode}): $e',
+        'code': 'AI_CLIENT_TIMEOUT',
+        'retryable': true,
+        'message':
+            'La respuesta está tardando. Tu texto se conserva; reintentar el mismo envío no lo duplicará.',
+      };
+    } on FormatException {
+      return {
+        'success': false,
+        'code': 'AI_INVALID_SERVER_RESPONSE',
+        'retryable': true,
+        'message':
+            'El servidor no devolvió una respuesta válida. Conservamos tu texto.',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'code': 'AI_CONNECTION_ERROR',
+        'retryable': true,
+        'message':
+            'No se pudo conectar. Revisa tu conexión; tu texto no se perdió.',
       };
     }
   }
 
-  // GET /api/ai/orientation/consent
   Future<Map<String, dynamic>> getConsentStatus() async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/ai/orientation/consent'),
-        headers: headers,
-      );
-
-      final data = _parseResponse(response);
-      if (response.statusCode == 200 && data['status'] == 'success') {
-        return {
-          'success': true,
-          'hasConsent': data['data']?['hasConsent'] == true,
-        };
-      }
-      return {
-        'success': false,
-        'hasConsent': false,
-        'message': data['message'] ?? 'Error al consultar consentimiento',
-      };
-    } catch (e) {
-      return {'success': false, 'hasConsent': false, 'message': 'Error de conexión: $e'};
-    }
+    final result = await _request('GET', '/consent');
+    final data = result['data'] as Map<String, dynamic>? ?? {};
+    return {
+      ...result,
+      'hasConsent': data['hasConsent'] == true,
+      'version': data['version'],
+      'notice': data['text'],
+    };
   }
 
-  // POST /api/ai/orientation/consent
-  Future<Map<String, dynamic>> registerConsent() async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/ai/orientation/consent'),
-        headers: headers,
-      );
+  Future<Map<String, dynamic>> registerConsent(String version) => _request(
+    'POST',
+    '/consent',
+    body: {'version': version, 'adultConfirmed': true},
+  );
 
-      final data = _parseResponse(response);
-      if ((response.statusCode == 200 || response.statusCode == 201) && data['status'] == 'success') {
-        return {'success': true, 'message': data['message']};
-      }
-      return {'success': false, 'message': data['message'] ?? 'Error al registrar consentimiento'};
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
-    }
+  Future<bool> deleteHistoryAndConsent() async {
+    final result = await _request('DELETE', '/history');
+    if (result['success'] == true) _pending.clear();
+    return result['success'] == true;
   }
 
-  // POST /api/ai/orientation/sessions
-  Future<Map<String, dynamic>> createOrGetSession() async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/ai/orientation/sessions'),
-        headers: headers,
-      );
-
-      final data = _parseResponse(response);
-      if (response.statusCode == 201 && data['status'] == 'success') {
-        return {
-          'success': true,
-          'session': data['data']?['session'],
-        };
-      }
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Error al iniciar sesión de orientación',
-      };
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
-    }
+  Future<Map<String, dynamic>> _session(String method, String path) async {
+    final result = await _request(method, path);
+    return {...result, 'session': result['data']?['session']};
   }
 
-  // GET /api/ai/orientation/sessions/active
-  Future<Map<String, dynamic>> getActiveSession() async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/ai/orientation/sessions/active'),
-        headers: headers,
-      );
+  Future<Map<String, dynamic>> createOrGetSession() =>
+      _session('POST', '/sessions');
+  Future<Map<String, dynamic>> getActiveSession() =>
+      _session('GET', '/sessions/active');
+  Future<Map<String, dynamic>> getSessionById(String sessionId) =>
+      _session('GET', '/sessions/$sessionId');
 
-      final data = _parseResponse(response);
-      if (response.statusCode == 200 && data['status'] == 'success') {
-        return {
-          'success': true,
-          'session': data['data']?['session'],
-        };
-      }
-      return {'success': false, 'session': null};
-    } catch (e) {
-      return {'success': false, 'session': null, 'message': 'Error de conexión: $e'};
+  Future<Map<String, dynamic>> sendMessage(
+    String sessionId,
+    String message,
+  ) async {
+    // Synchronize account before allocating the stable key (also clears drafts after logout).
+    final token = await _authService.getToken();
+    if (_lastToken != token) {
+      _pending.clear();
+      _lastToken = token;
     }
+    final pending = _pending.forSend(sessionId, message);
+    final result = await _request(
+      'POST',
+      '/sessions/$sessionId/messages',
+      inference: true,
+      body: {'message': pending.text, 'requestKey': pending.requestKey},
+    );
+    if (result['success'] == true) {
+      _pending.acknowledge(sessionId, pending.requestKey);
+    }
+    return result;
   }
 
-  // GET /api/ai/orientation/sessions/:id
-  Future<Map<String, dynamic>> getSessionById(String sessionId) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/ai/orientation/sessions/$sessionId'),
-        headers: headers,
-      );
-
-      final data = _parseResponse(response);
-      if (response.statusCode == 200 && data['status'] == 'success') {
-        return {
-          'success': true,
-          'session': data['data']?['session'],
-        };
-      }
-      return {'success': false, 'message': data['message'] ?? 'Error al obtener sesión'};
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
-    }
+  Future<Map<String, dynamic>> _recommendations(
+    String method,
+    String path,
+  ) async {
+    final result = await _request(method, path);
+    return {...result, 'recommendations': result['data']};
   }
 
-  // POST /api/ai/orientation/sessions/:id/messages
-  Future<Map<String, dynamic>> sendMessage(String sessionId, String message) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/ai/orientation/sessions/$sessionId/messages'),
-        headers: headers,
-        body: jsonEncode({'message': message}),
-      );
-
-      final data = _parseResponse(response);
-      if (response.statusCode == 200 && data['status'] == 'success') {
-        return {
-          'success': true,
-          'data': data['data'],
-        };
-      }
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Error al enviar mensaje',
-      };
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
-    }
-  }
-
-  // POST /api/ai/orientation/sessions/:id/complete
-  Future<Map<String, dynamic>> completeSession(String sessionId) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/ai/orientation/sessions/$sessionId/complete'),
-        headers: headers,
-      );
-
-      final data = _parseResponse(response);
-      if (response.statusCode == 200 && data['status'] == 'success') {
-        return {
-          'success': true,
-          'recommendations': data['data'],
-        };
-      }
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Error al completar la orientación',
-      };
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
-    }
-  }
-
-  // GET /api/ai/orientation/sessions/:id/recommendations
-  Future<Map<String, dynamic>> getRecommendations(String sessionId) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/ai/orientation/sessions/$sessionId/recommendations'),
-        headers: headers,
-      );
-
-      final data = _parseResponse(response);
-      if (response.statusCode == 200 && data['status'] == 'success') {
-        return {
-          'success': true,
-          'recommendations': data['data'],
-        };
-      }
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Error al obtener recomendaciones',
-      };
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
-    }
-  }
+  Future<Map<String, dynamic>> completeSession(String sessionId) =>
+      _recommendations('POST', '/sessions/$sessionId/complete');
+  Future<Map<String, dynamic>> getRecommendations(String sessionId) =>
+      _recommendations('GET', '/sessions/$sessionId/recommendations');
 }

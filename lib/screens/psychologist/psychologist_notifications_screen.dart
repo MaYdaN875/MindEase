@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../chat/private_chat_screen.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -69,6 +70,10 @@ class _PsychologistNotificationsScreenState extends State<PsychologistNotificati
         if (_unreadCount > 0) _unreadCount--;
       });
       await _notificationService.markAsRead(id);
+    }
+    if (mounted && (notif['type'] == 'PRE_BOOKING_MESSAGE' || notif['type'] == 'PRIVATE_MESSAGE')) {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivateChatInbox()));
+      if (mounted) _fetchNotifications();
     }
   }
 

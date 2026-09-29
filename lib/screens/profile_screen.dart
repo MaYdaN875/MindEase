@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'chat/private_chat_screen.dart';
 import '../widgets/person_avatar.dart';
 import '../services/review_service.dart';
 import 'review_screen.dart';
@@ -191,14 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(width: 12),
                           InkWell(
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Chatting with ${doc.name.split(',')[0]}...'),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
+                            onTap: () => openPreBookingChat(context, psychologistId: doc.id, name: doc.name),
                             borderRadius: BorderRadius.circular(10),
                             child: Container(
                               width: 56,

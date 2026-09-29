@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'review_screen.dart';
+import 'chat/private_chat_screen.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import 'patient_appointments_screen.dart';
@@ -79,6 +80,11 @@ class _PatientNotificationsScreenState extends State<PatientNotificationsScreen>
 
     final type = notif['type'];
     final referenceId = notif['referenceId'];
+    if (type == 'PRE_BOOKING_MESSAGE' || type == 'PRIVATE_MESSAGE') {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivateChatInbox()));
+      if (mounted) _fetchNotifications();
+      return;
+    }
 
     if (referenceId != null && type == 'CONSULTATION_COMPLETED') {
       await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReviewScreen(appointmentId: referenceId.toString())));

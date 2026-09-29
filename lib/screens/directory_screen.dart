@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'chat/private_chat_screen.dart';
 import '../widgets/person_avatar.dart';
 import '../models/psychologist.dart';
 import '../services/psychologist_service.dart';
@@ -168,8 +169,9 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.notifications_none),
-                        onPressed: () {},
+                        icon: const Icon(Icons.forum_outlined),
+                        tooltip: 'Mensajes',
+                        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivateChatInbox())),
                         style: IconButton.styleFrom(
                           foregroundColor: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
                         ),
@@ -515,14 +517,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                                 padding: EdgeInsets.zero,
                                                 icon: const Icon(Icons.chat_outlined, size: 16),
                                                 color: Colors.grey,
-                                                onPressed: () {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(
-                                                      content: Text('Starting chat with ${psychologist.name.split(',')[0]}...'),
-                                                      behavior: SnackBarBehavior.floating,
-                                                    ),
-                                                  );
-                                                },
+                                                onPressed: () => openPreBookingChat(context, psychologistId: psychologist.id, name: psychologist.name),
                                               ),
                                             ),
                                           ],
