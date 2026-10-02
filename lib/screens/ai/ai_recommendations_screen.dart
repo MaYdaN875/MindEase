@@ -20,13 +20,17 @@ class AIRecommendationsScreen extends StatelessWidget {
 
     final List<dynamic> rawSpecs =
         recommendationsData['suggestedSpecialties'] as List<dynamic>? ?? [];
-    final specialties =
-        rawSpecs.map((s) => SuggestedSpecialty.fromJson(s as Map<String, dynamic>)).toList();
+    final specialties = rawSpecs
+        .map((s) => SuggestedSpecialty.fromJson(s as Map<String, dynamic>))
+        .toList();
 
     final List<dynamic> rawPsychs =
         recommendationsData['recommendedPsychologists'] as List<dynamic>? ?? [];
     final psychologists = rawPsychs
-        .map((p) => RecommendedPsychologistItem.fromJson(p as Map<String, dynamic>))
+        .map(
+          (p) =>
+              RecommendedPsychologistItem.fromJson(p as Map<String, dynamic>),
+        )
         .toList();
 
     final summary = recommendationsData['summary']?.toString();
@@ -42,7 +46,10 @@ class AIRecommendationsScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: onFinish,
-            child: const Text('Listo', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Listo',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -62,7 +69,11 @@ class AIRecommendationsScreen extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.verified_user_outlined, color: Colors.blue, size: 22),
+                  const Icon(
+                    Icons.verified_user_outlined,
+                    color: Colors.blue,
+                    size: 22,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -82,18 +93,20 @@ class AIRecommendationsScreen extends StatelessWidget {
             // Resumen de la orientación
             if (summary != null && summary.isNotEmpty) ...[
               Text(
-                'Resumen de tu consulta',
+                'Lo que nos compartiste',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppTheme.textLight : AppTheme.textDark,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                ),
               ),
               const SizedBox(height: 6),
               Text(
                 summary,
                 style: TextStyle(
                   fontSize: 14,
-                  color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                  color: isDark
+                      ? AppTheme.textSecondaryDark
+                      : AppTheme.textSecondaryLight,
                 ),
               ),
               const SizedBox(height: 20),
@@ -102,11 +115,16 @@ class AIRecommendationsScreen extends StatelessWidget {
             // Especialidades recomendadas
             if (specialties.isNotEmpty) ...[
               Text(
-                'Especialidades sugeridas para ti',
+                'Áreas de apoyo que puedes explorar',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppTheme.textLight : AppTheme.textDark,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Son opciones de especialidad, no diagnósticos ni una indicación de que tengas un trastorno.',
+                style: TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 10),
               ...specialties.map(
@@ -125,8 +143,11 @@ class AIRecommendationsScreen extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.psychology_outlined,
-                              color: AppTheme.primary, size: 20),
+                          Icon(
+                            Icons.psychology_outlined,
+                            color: AppTheme.primary,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -134,7 +155,9 @@ class AIRecommendationsScreen extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
-                                color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                                color: isDark
+                                    ? AppTheme.textLight
+                                    : AppTheme.textDark,
                               ),
                             ),
                           ),
@@ -159,18 +182,20 @@ class AIRecommendationsScreen extends StatelessWidget {
 
             // Profesionales sugeridos (solo verificados y reales)
             Text(
-              'Psicólogos verificados afines',
+              'Profesionales verificados para explorar',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? AppTheme.textLight : AppTheme.textDark,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppTheme.textLight : AppTheme.textDark,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
-              'Seleccionados con base en sus especialidades acreditadas y disponibilidad.',
+              'Revisa en cada perfil las especialidades, tarifas y horarios. Las opciones pueden no cumplir todas tus preferencias.',
               style: TextStyle(
                 fontSize: 13,
-                color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                color: isDark
+                    ? AppTheme.textSecondaryDark
+                    : AppTheme.textSecondaryLight,
               ),
             ),
             const SizedBox(height: 12),
@@ -183,7 +208,9 @@ class AIRecommendationsScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Center(
-                  child: Text('No hay profesionales disponibles en este momento.'),
+                  child: Text(
+                    'No hay profesionales disponibles en este momento.',
+                  ),
                 ),
               )
             else
@@ -236,7 +263,8 @@ class AIRecommendationsScreen extends StatelessWidget {
       patients: '100+',
       experience: '5+ años',
       languages: 'Español',
-      about: 'Especialista verificado en MindEase enfocado en brindar acompañamiento profesional.',
+      about:
+          'Especialista verificado en MindEase enfocado en brindar acompañamiento profesional.',
       specialties: psychItem.specialties,
       reviews: [],
       isVerified: true,
@@ -278,14 +306,20 @@ class AIRecommendationsScreen extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                              color: isDark
+                                  ? AppTheme.textLight
+                                  : AppTheme.textDark,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.verified, color: AppTheme.primary, size: 16),
+                        const Icon(
+                          Icons.verified,
+                          color: AppTheme.primary,
+                          size: 16,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 2),
@@ -321,7 +355,10 @@ class AIRecommendationsScreen extends StatelessWidget {
               runSpacing: 4,
               children: psychItem.matchReasons.map((reason) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
