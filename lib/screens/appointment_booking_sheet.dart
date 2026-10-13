@@ -5,6 +5,7 @@ import '../services/appointment_service.dart';
 import '../services/payment_service.dart';
 import '../services/stripe_payment_service.dart';
 import '../theme/app_theme.dart';
+import 'verify_email_screen.dart';
 
 class AppointmentBookingSheet extends StatefulWidget {
   final Psychologist psychologist;
@@ -157,6 +158,16 @@ class _AppointmentBookingSheetState extends State<AppointmentBookingSheet> {
       if (!mounted) {
         // A reservation made after dismissal is reclaimed by server-side expiration.
         return;
+      }
+      if (aptRes['code'] == 'EMAIL_NOT_VERIFIED') {
+        final verified = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(builder: (_) => const VerifyEmailScreen()),
+        );
+        if (!mounted) return;
+        if (verified == true) {
+          setState(() => _isBooking = false);
+          return _handleConfirmBooking();
+        }
       }
       if (aptRes['success'] != true) {
         setState(() {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/verify_email_screen.dart';
 import 'widgets/person_avatar.dart';
 import 'models/psychologist.dart';
 import 'screens/directory_screen.dart';
@@ -91,6 +92,7 @@ class _AppRootState extends State<AppRoot> {
             _showOnboarding = false;
             _isLoading = false;
           });
+          _promptEmailVerificationOnce();
         }
         return;
       }
@@ -104,6 +106,32 @@ class _AppRootState extends State<AppRoot> {
     }
   }
 
+  bool _emailPromptShown = false;
+
+  Future<void> _openVerifyEmail() async {
+    final verified = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const VerifyEmailScreen()),
+    );
+    if (verified == true && mounted) {
+      await _checkAuthStatus();
+    }
+  }
+
+  void _promptEmailVerificationOnce() {
+    if (_emailPromptShown || _currentUser?['emailVerified'] != false) return;
+    _emailPromptShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Verifica tu correo para poder reservar citas.'),
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(label: 'Verificar', onPressed: _openVerifyEmail),
+        ),
+      );
+    });
+  }
+
   Future<void> _handleLogout() async {
     await AuthService().logout();
     if (mounted) {
@@ -111,6 +139,7 @@ class _AppRootState extends State<AppRoot> {
         _isAuthenticated = false;
         _showOnboarding = true;
         _currentUser = null;
+        _emailPromptShown = false;
         _currentNavIndex = 0;
       });
     }
@@ -332,6 +361,8 @@ class _AppRootState extends State<AppRoot> {
                 );
               },
             ),
+            if (_currentUser?['emailVerified'] == false)
+              _buildSettingTile(Icons.mark_email_unread_outlined, 'Correo sin verificar: toca para verificar', isDark, onTap: _openVerifyEmail),
             _buildSettingTile(Icons.shield_outlined, 'Privacy & Safety', isDark),
             _buildSettingTile(Icons.notifications_none_outlined, 'Notification Settings', isDark),
             _buildSettingTile(Icons.payment_outlined, 'Subscription & Billing', isDark),

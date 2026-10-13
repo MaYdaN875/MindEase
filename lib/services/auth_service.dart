@@ -147,6 +147,31 @@ class AuthService {
     }
   }
 
+  // Verify email with the 6-digit code
+  Future<Map<String, dynamic>> verifyEmail(String code) => _emailPost('verify-email', {'code': code});
+
+  // Request a new verification code
+  Future<Map<String, dynamic>> resendVerification() => _emailPost('resend-verification', null);
+
+  Future<Map<String, dynamic>> _emailPost(String path, Map<String, dynamic>? body) async {
+    try {
+      final token = await getToken();
+      if (token == null) return {'success': false, 'message': 'Sesión no válida'};
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/$path'),
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        body: jsonEncode(body ?? {}),
+      );
+      final data = _parseResponse(response);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return {'success': true, 'message': data['message']};
+      }
+      return {'success': false, 'message': data['message'] ?? 'No se pudo completar la solicitud'};
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: ${e.toString()}'};
+    }
+  }
+
   // LOGOUT
   Future<void> logout() async {
     await deleteToken();

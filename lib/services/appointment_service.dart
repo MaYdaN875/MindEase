@@ -89,6 +89,7 @@ class AppointmentService {
 
       return {
         'success': false,
+        'code': data['code'],
         'message': data['message'] ?? 'Error al agendar la cita',
       };
     } catch (e) {

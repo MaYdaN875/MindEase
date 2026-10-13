@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
+import 'verify_email_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   final VoidCallback onRegisterSuccess;
@@ -70,6 +71,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (result['success'] == true) {
         final userName = result['data']?['name'] ?? 'Usuario';
+        if (result['data']?['emailVerified'] != true) {
+          await Navigator.of(context).push<bool>(
+            MaterialPageRoute(builder: (_) => const VerifyEmailScreen()),
+          );
+          if (!mounted) return;
+        }
         _showSuccessAndRedirect(userName);
       } else {
         setState(() {
