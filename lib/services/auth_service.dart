@@ -40,10 +40,13 @@ class AuthService {
   Map<String, dynamic> _parseResponse(http.Response response) {
     try {
       final body = response.body.trim();
-      if (body.startsWith('<!DOCTYPE') || body.startsWith('<html') || body.startsWith('<pre')) {
+      if (body.startsWith('<!DOCTYPE') ||
+          body.startsWith('<html') ||
+          body.startsWith('<pre')) {
         return {
           'status': 'error',
-          'message': 'El servidor backend devolvió una página HTML en lugar de JSON (HTTP ${response.statusCode}).',
+          'message':
+              'El servidor backend devolvió una página HTML en lugar de JSON (HTTP ${response.statusCode}).',
         };
       }
       final data = jsonDecode(body);
@@ -54,7 +57,8 @@ class AuthService {
     } catch (e) {
       return {
         'status': 'error',
-        'message': 'Error al procesar respuesta del servidor (HTTP ${response.statusCode}): $e',
+        'message':
+            'Error al procesar respuesta del servidor (HTTP ${response.statusCode}): $e',
       };
     }
   }
@@ -74,7 +78,10 @@ class AuthService {
         await saveToken(token);
         return {'success': true, 'data': data['data']['user']};
       } else {
-        return {'success': false, 'message': data['message'] ?? 'Authentication failed'};
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Authentication failed',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};
@@ -88,7 +95,7 @@ class AuthService {
     String password, {
     String role = 'USER',
     String? phone,
-    bool acceptedPrivacy = false,
+    List<Map<String, String>> legalAcceptances = const [],
   }) async {
     try {
       final response = await http.post(
@@ -100,7 +107,7 @@ class AuthService {
           'password': password,
           'role': role,
           if (phone != null && phone.isNotEmpty) 'phone': phone,
-          'acceptedPrivacy': acceptedPrivacy,
+          'legalAcceptances': legalAcceptances,
         }),
       );
 
@@ -110,10 +117,35 @@ class AuthService {
         await saveToken(token);
         return {'success': true, 'data': data['data']['user']};
       } else {
-        return {'success': false, 'message': data['message'] ?? 'Registration failed'};
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Registration failed',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};
+    }
+  }
+
+  Future<Map<String, dynamic>> getRegistrationLegalTexts(String role) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/auth/legal-texts?role=$role'),
+      );
+      final data = _parseResponse(response);
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        return {'success': true, 'data': data['data']};
+      }
+      return {
+        'success': false,
+        'message':
+            data['message'] ?? 'No se pudieron cargar los textos legales.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'No se pudieron cargar los textos legales.',
+      };
     }
   }
 
@@ -140,7 +172,10 @@ class AuthService {
         if (response.statusCode == 401) {
           await deleteToken();
         }
-        return {'success': false, 'message': data['message'] ?? 'Failed to get profile'};
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to get profile',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};
@@ -148,27 +183,42 @@ class AuthService {
   }
 
   // Verify email with the 6-digit code
-  Future<Map<String, dynamic>> verifyEmail(String code) => _emailPost('verify-email', {'code': code});
+  Future<Map<String, dynamic>> verifyEmail(String code) =>
+      _emailPost('verify-email', {'code': code});
 
   // Request a new verification code
-  Future<Map<String, dynamic>> resendVerification() => _emailPost('resend-verification', null);
+  Future<Map<String, dynamic>> resendVerification() =>
+      _emailPost('resend-verification', null);
 
-  Future<Map<String, dynamic>> _emailPost(String path, Map<String, dynamic>? body) async {
+  Future<Map<String, dynamic>> _emailPost(
+    String path,
+    Map<String, dynamic>? body,
+  ) async {
     try {
       final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'Sesión no válida'};
+      if (token == null)
+        return {'success': false, 'message': 'Sesión no válida'};
       final response = await http.post(
         Uri.parse('$baseUrl/api/auth/$path'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode(body ?? {}),
       );
       final data = _parseResponse(response);
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true, 'message': data['message']};
       }
-      return {'success': false, 'message': data['message'] ?? 'No se pudo completar la solicitud'};
+      return {
+        'success': false,
+        'message': data['message'] ?? 'No se pudo completar la solicitud',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: ${e.toString()}'};
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}',
+      };
     }
   }
 
@@ -197,7 +247,10 @@ class AuthService {
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true, 'data': data['data']['profile']};
       } else {
-        return {'success': false, 'message': data['message'] ?? 'Failed to load profile'};
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to load profile',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};
@@ -205,7 +258,9 @@ class AuthService {
   }
 
   // Update Psychologist Profile
-  Future<Map<String, dynamic>> updatePsychologistProfile(Map<String, dynamic> fields) async {
+  Future<Map<String, dynamic>> updatePsychologistProfile(
+    Map<String, dynamic> fields,
+  ) async {
     try {
       final token = await getToken();
       if (token == null) return {'success': false, 'message': 'No token'};
@@ -223,7 +278,10 @@ class AuthService {
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true, 'data': data['data']['profile']};
       } else {
-        return {'success': false, 'message': data['message'] ?? 'Failed to update profile'};
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to update profile',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};
@@ -252,7 +310,10 @@ class AuthService {
       if (response.statusCode == 201 && data['status'] == 'success') {
         return {'success': true, 'data': data['data']['document']};
       } else {
-        return {'success': false, 'message': data['message'] ?? 'Upload failed'};
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Upload failed',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};
@@ -260,7 +321,9 @@ class AuthService {
   }
 
   // Delete Psychologist Document
-  Future<Map<String, dynamic>> deletePsychologistDocument(String documentId) async {
+  Future<Map<String, dynamic>> deletePsychologistDocument(
+    String documentId,
+  ) async {
     try {
       final token = await getToken();
       if (token == null) return {'success': false, 'message': 'No token'};
@@ -277,7 +340,10 @@ class AuthService {
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true};
       } else {
-        return {'success': false, 'message': data['message'] ?? 'Deletion failed'};
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Deletion failed',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};
@@ -302,7 +368,10 @@ class AuthService {
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true, 'message': data['message']};
       } else {
-        return {'success': false, 'message': data['message'] ?? 'Failed to submit review'};
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to submit review',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};
@@ -327,7 +396,10 @@ class AuthService {
       if (response.statusCode == 200 && data['status'] == 'success') {
         return {'success': true, 'data': data['data']};
       } else {
-        return {'success': false, 'message': data['message'] ?? 'Failed to load status'};
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to load status',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};

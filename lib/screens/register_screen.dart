@@ -22,9 +22,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String _selectedRole = 'USER';
   bool _acceptedPrivacy = false;
+  List<Map<String, dynamic>> _legalTexts = [];
+  bool _hasViewedLegalTexts = false;
+  bool _loadingLegalTexts = false;
+  String? _legalError;
   bool _isLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLegalTexts();
+  }
 
   @override
   void dispose() {
@@ -38,9 +48,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedRole == 'PSYCHOLOGIST' && !_acceptedPrivacy) {
+    if (!_acceptedPrivacy || _legalTexts.isEmpty) {
       setState(() {
-        _errorMessage = 'Debes aceptar los términos y el aviso de privacidad profesional.';
+        _errorMessage =
+            'Debes leer y aceptar los textos legales vigentes para crear tu cuenta.';
       });
       return;
     }
@@ -61,7 +72,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       password,
       role: _selectedRole,
       phone: phone.isNotEmpty ? phone : null,
-      acceptedPrivacy: _acceptedPrivacy,
+      legalAcceptances: _legalTexts
+          .map(
+            (text) => {
+              'id': text['id'].toString(),
+              'version': text['version'].toString(),
+            },
+          )
+          .toList(),
     );
 
     if (mounted) {
@@ -80,10 +98,77 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _showSuccessAndRedirect(userName);
       } else {
         setState(() {
-          _errorMessage = result['message'] ?? 'Ocurrió un error en el registro';
+          _errorMessage =
+              result['message'] ?? 'Ocurrió un error en el registro';
         });
       }
     }
+  }
+
+  Future<void> _loadLegalTexts({bool showDialog = false}) async {
+    setState(() {
+      _loadingLegalTexts = true;
+      _legalError = null;
+    });
+    final result = await AuthService().getRegistrationLegalTexts(_selectedRole);
+    if (!mounted) return;
+    setState(() {
+      _loadingLegalTexts = false;
+      if (result['success'] == true) {
+        _legalTexts = List<Map<String, dynamic>>.from(
+          result['data']?['texts'] ?? const [],
+        );
+        _acceptedPrivacy = false;
+        _hasViewedLegalTexts = false;
+      } else {
+        _legalTexts = [];
+        _legalError = result['message']?.toString();
+      }
+    });
+    if (showDialog && mounted && _legalTexts.isNotEmpty)
+      await _showLegalTexts();
+  }
+
+  Future<void> _showLegalTexts() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Textos legales vigentes'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _legalTexts
+                  .map(
+                    (text) => Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${text['title']} · v${text['version']}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(text['content']?.toString() ?? ''),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) setState(() => _hasViewedLegalTexts = true);
   }
 
   Future<void> _showSuccessAndRedirect(String userName) async {
@@ -100,9 +185,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             decoration: BoxDecoration(
               color: isDark ? AppTheme.cardDark : Colors.white,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: AppTheme.primary.withOpacity(0.2),
-              ),
+              border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
               boxShadow: [
                 BoxShadow(
                   color: AppTheme.primary.withOpacity(0.1),
@@ -152,7 +235,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
-                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                    color: isDark
+                        ? AppTheme.textSecondaryDark
+                        : AppTheme.textSecondaryLight,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -190,7 +275,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Center(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: Form(
               key: _formKey,
               child: Column(
@@ -203,7 +291,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       icon: const Icon(Icons.arrow_back),
                       onPressed: () => Navigator.of(context).pop(),
                       style: IconButton.styleFrom(
-                        foregroundColor: isDark ? AppTheme.textLight : AppTheme.textDark,
+                        foregroundColor: isDark
+                            ? AppTheme.textLight
+                            : AppTheme.textDark,
                       ),
                     ),
                   ),
@@ -225,7 +315,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 15,
-                      color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                      color: isDark
+                          ? AppTheme.textSecondaryDark
+                          : AppTheme.textSecondaryLight,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -236,11 +328,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       decoration: BoxDecoration(
                         color: Colors.redAccent.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                        border: Border.all(
+                          color: Colors.redAccent.withOpacity(0.3),
+                        ),
                       ),
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 14,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -250,31 +347,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Name Field
                   TextFormField(
                     controller: _nameController,
-                    style: TextStyle(color: isDark ? AppTheme.textLight : AppTheme.textDark),
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Nombre Completo',
                       labelStyle: TextStyle(
-                        color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                        color: isDark
+                            ? AppTheme.textSecondaryDark
+                            : AppTheme.textSecondaryLight,
                       ),
-                      prefixIcon: const Icon(Icons.person_outline, color: AppTheme.primary),
+                      prefixIcon: const Icon(
+                        Icons.person_outline,
+                        color: AppTheme.primary,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+                        borderSide: const BorderSide(
+                          color: AppTheme.primary,
+                          width: 2,
+                        ),
                       ),
                       filled: true,
-                      fillColor: isDark ? AppTheme.cardDark.withOpacity(0.5) : Colors.white,
+                      fillColor: isDark
+                          ? AppTheme.cardDark.withOpacity(0.5)
+                          : Colors.white,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -292,37 +405,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: TextStyle(color: isDark ? AppTheme.textLight : AppTheme.textDark),
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Correo Electrónico',
                       labelStyle: TextStyle(
-                        color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                        color: isDark
+                            ? AppTheme.textSecondaryDark
+                            : AppTheme.textSecondaryLight,
                       ),
-                      prefixIcon: const Icon(Icons.email_outlined, color: AppTheme.primary),
+                      prefixIcon: const Icon(
+                        Icons.email_outlined,
+                        color: AppTheme.primary,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+                        borderSide: const BorderSide(
+                          color: AppTheme.primary,
+                          width: 2,
+                        ),
                       ),
                       filled: true,
-                      fillColor: isDark ? AppTheme.cardDark.withOpacity(0.5) : Colors.white,
+                      fillColor: isDark
+                          ? AppTheme.cardDark.withOpacity(0.5)
+                          : Colors.white,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Por favor ingresa tu correo';
                       }
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                      if (!RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      ).hasMatch(value)) {
                         return 'Ingresa un correo electrónico válido';
                       }
                       return null;
@@ -334,31 +465,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextFormField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
-                    style: TextStyle(color: isDark ? AppTheme.textLight : AppTheme.textDark),
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Número Telefónico',
                       labelStyle: TextStyle(
-                        color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                        color: isDark
+                            ? AppTheme.textSecondaryDark
+                            : AppTheme.textSecondaryLight,
                       ),
-                      prefixIcon: const Icon(Icons.phone_outlined, color: AppTheme.primary),
+                      prefixIcon: const Icon(
+                        Icons.phone_outlined,
+                        color: AppTheme.primary,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+                        borderSide: const BorderSide(
+                          color: AppTheme.primary,
+                          width: 2,
+                        ),
                       ),
                       filled: true,
-                      fillColor: isDark ? AppTheme.cardDark.withOpacity(0.5) : Colors.white,
+                      fillColor: isDark
+                          ? AppTheme.cardDark.withOpacity(0.5)
+                          : Colors.white,
                     ),
                     validator: (value) {
                       if (_selectedRole == 'PSYCHOLOGIST') {
@@ -378,16 +525,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    style: TextStyle(color: isDark ? AppTheme.textLight : AppTheme.textDark),
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Contraseña',
                       labelStyle: TextStyle(
-                        color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                        color: isDark
+                            ? AppTheme.textSecondaryDark
+                            : AppTheme.textSecondaryLight,
                       ),
-                      prefixIcon: const Icon(Icons.lock_outlined, color: AppTheme.primary),
+                      prefixIcon: const Icon(
+                        Icons.lock_outlined,
+                        color: AppTheme.primary,
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                           color: Colors.grey,
                         ),
                         onPressed: () {
@@ -399,21 +555,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+                        borderSide: const BorderSide(
+                          color: AppTheme.primary,
+                          width: 2,
+                        ),
                       ),
                       filled: true,
-                      fillColor: isDark ? AppTheme.cardDark.withOpacity(0.5) : Colors.white,
+                      fillColor: isDark
+                          ? AppTheme.cardDark.withOpacity(0.5)
+                          : Colors.white,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -440,11 +605,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: _buildRoleCard('USER', 'Usuario', Icons.favorite_border, isDark),
+                        child: _buildRoleCard(
+                          'USER',
+                          'Usuario',
+                          Icons.favorite_border,
+                          isDark,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildRoleCard('PSYCHOLOGIST', 'Psicólogo', Icons.badge_outlined, isDark),
+                        child: _buildRoleCard(
+                          'PSYCHOLOGIST',
+                          'Psicólogo',
+                          Icons.badge_outlined,
+                          isDark,
+                        ),
                       ),
                     ],
                   ),
@@ -457,29 +632,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         value: _acceptedPrivacy,
                         activeColor: AppTheme.primary,
                         checkColor: AppTheme.bgDark,
-                        onChanged: (val) {
-                          setState(() {
-                            _acceptedPrivacy = val ?? false;
-                          });
-                        },
+                        onChanged: _legalTexts.isEmpty || !_hasViewedLegalTexts
+                            ? null
+                            : (val) {
+                                setState(() {
+                                  _acceptedPrivacy = val ?? false;
+                                });
+                              },
                       ),
                       Expanded(
                         child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _acceptedPrivacy = !_acceptedPrivacy;
-                            });
-                          },
+                          onTap: _loadingLegalTexts
+                              ? null
+                              : () => _loadLegalTexts(showDialog: true),
                           child: Text(
-                            'Acepto el aviso de privacidad y términos para profesionales',
+                            _legalTexts.isEmpty
+                                ? 'Ver y aceptar aviso de privacidad y términos'
+                                : _hasViewedLegalTexts
+                                ? 'Acepto los textos legales vigentes (${_legalTexts.length})'
+                                : 'Lee los textos legales antes de aceptar',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                              color: isDark
+                                  ? AppTheme.textSecondaryDark
+                                  : AppTheme.textSecondaryLight,
                             ),
                           ),
                         ),
                       ),
                     ],
+                  ),
+                  if (_legalError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        _legalError!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  TextButton(
+                    onPressed: _loadingLegalTexts
+                        ? null
+                        : () => _loadLegalTexts(showDialog: true),
+                    child: Text(
+                      _loadingLegalTexts
+                          ? 'Cargando textos…'
+                          : 'Leer textos legales',
+                    ),
                   ),
                   const SizedBox(height: 24),
 
@@ -495,7 +697,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      disabledBackgroundColor: AppTheme.primary.withOpacity(0.5),
+                      disabledBackgroundColor: AppTheme.primary.withOpacity(
+                        0.5,
+                      ),
                     ),
                     child: _isLoading
                         ? const SizedBox(
@@ -503,12 +707,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.bgDark),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppTheme.bgDark,
+                              ),
                             ),
                           )
                         : const Text(
                             'Registrarse',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                   ),
                   const SizedBox(height: 24),
@@ -519,7 +729,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Text(
                         '¿Ya tienes cuenta? ',
                         style: TextStyle(
-                          color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                          color: isDark
+                              ? AppTheme.textSecondaryDark
+                              : AppTheme.textSecondaryLight,
                         ),
                       ),
                       GestureDetector(
@@ -559,7 +771,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       onTap: () {
         setState(() {
           _selectedRole = role;
+          _acceptedPrivacy = false;
+          _legalTexts = [];
+          _hasViewedLegalTexts = false;
+          _legalError = null;
         });
+        _loadLegalTexts();
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -570,7 +787,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               : (isDark ? AppTheme.cardDark : Colors.white),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppTheme.primary : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
+            color: isSelected
+                ? AppTheme.primary
+                : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -589,7 +808,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected
                     ? AppTheme.primary
-                    : (isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                    : (isDark
+                          ? AppTheme.textSecondaryDark
+                          : AppTheme.textSecondaryLight),
               ),
             ),
           ],
