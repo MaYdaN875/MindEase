@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../chat/private_chat_screen.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
+import 'psychologist_consultations_screen.dart';
 
 class PsychologistNotificationsScreen extends StatefulWidget {
   const PsychologistNotificationsScreen({super.key});
@@ -71,10 +72,33 @@ class _PsychologistNotificationsScreenState extends State<PsychologistNotificati
       });
       await _notificationService.markAsRead(id);
     }
-    if (mounted && (notif['type'] == 'PRE_BOOKING_MESSAGE' || notif['type'] == 'PRIVATE_MESSAGE')) {
-      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivateChatInbox()));
-      if (mounted) _fetchNotifications();
+    if (!mounted) return;
+    final type = notif['type']?.toString() ?? '';
+    final referenceId = notif['referenceId']?.toString();
+    if (type == 'PRE_BOOKING_MESSAGE' || type == 'PRIVATE_MESSAGE') {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => referenceId == null || referenceId.isEmpty
+            ? const PrivateChatInbox()
+            : PrivateChatScreen(
+                appointmentId: referenceId,
+                peerName: type == 'PRE_BOOKING_MESSAGE' ? 'Contacto' : 'Participante de la sesión',
+                preBooking: type == 'PRE_BOOKING_MESSAGE',
+              ),
+      ));
+    } else if (referenceId != null && referenceId.isNotEmpty &&
+        (type.startsWith('APPOINTMENT_') || type.startsWith('CONSULTATION_'))) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => PsychologistConsultationsScreen(
+          initialAppointmentId: referenceId,
+          onOpenNotifications: () => Navigator.of(context).pop(),
+          onToggleTheme: () {},
+          isDarkMode: Theme.of(context).brightness == Brightness.dark,
+        ),
+      ));
+    } else {
+      return;
     }
+    if (mounted) _fetchNotifications();
   }
 
   String _formatTime(String? dateStr) {

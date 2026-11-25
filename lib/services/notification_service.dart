@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
 
 class NotificationService {
@@ -120,6 +121,45 @@ class NotificationService {
       };
     } catch (e) {
       return {'success': false, 'message': 'Error de conexión: $e'};
+    }
+  }
+
+  Future<bool> registerDeviceToken(String deviceToken, {String platform = 'android'}) async {
+    try {
+      final token = await _authService.getToken();
+      if (token == null) return false;
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/notifications/device-token'),
+        headers: headers,
+        body: jsonEncode({
+          'token': deviceToken,
+          'platform': platform,
+        }),
+      );
+      debugPrint('[FCM] Device registration HTTP ${response.statusCode}');
+      return response.statusCode == 200;
+    } catch (_) {
+      debugPrint('[FCM] Device registration request failed');
+      return false;
+    }
+  }
+
+  Future<bool> unregisterDeviceToken(String deviceToken) async {
+    try {
+      final token = await _authService.getToken();
+      if (token == null) return false;
+      final headers = await _getHeaders();
+      final request = http.Request(
+        'DELETE',
+        Uri.parse('$baseUrl/api/notifications/device-token'),
+      )
+        ..headers.addAll(headers)
+        ..body = jsonEncode({'token': deviceToken});
+      final streamed = await request.send();
+      return streamed.statusCode == 200;
+    } catch (_) {
+      return false;
     }
   }
 }

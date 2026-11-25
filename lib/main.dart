@@ -9,13 +9,20 @@ import 'screens/onboarding_screen.dart';
 import 'screens/profile_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
+import 'services/push_notification_service.dart';
 import 'screens/application_status_screen.dart';
 import 'screens/psychologist/psychologist_main_layout.dart';
+import 'screens/psychologist/psychologist_notifications_screen.dart';
 import 'screens/patient_appointments_screen.dart';
+import 'screens/patient_notifications_screen.dart';
 import 'screens/support/help_support_screen.dart';
+import 'screens/chat/private_chat_screen.dart';
+import 'screens/review_screen.dart';
+import 'screens/psychologist/psychologist_consultations_screen.dart';
 
-
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await PushNotificationService().initialize();
   runApp(const MyApp());
 }
 
@@ -27,11 +34,14 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.dark; // Default to dark mode for modern aesthetic
+  ThemeMode _themeMode =
+      ThemeMode.dark; // Default to dark mode for modern aesthetic
 
   void _toggleTheme() {
     setState(() {
-      _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+      _themeMode = _themeMode == ThemeMode.dark
+          ? ThemeMode.light
+          : ThemeMode.dark;
     });
   }
 
@@ -70,7 +80,8 @@ class _AppRootState extends State<AppRoot> {
   bool _isLoading = true;
   bool _isAuthenticated = false;
   Map<String, dynamic>? _currentUser;
-  int _currentNavIndex = 0; // 0 = Home, 1 = Explore/Directory, 2 = Community, 3 = Profile
+  int _currentNavIndex =
+      0; // 0 = Home, 1 = Explore/Directory, 2 = Community, 3 = Profile
   Psychologist? _selectedPsychologist;
 
   @override
@@ -93,6 +104,7 @@ class _AppRootState extends State<AppRoot> {
             _isLoading = false;
           });
           _promptEmailVerificationOnce();
+          _setupPushNotifications();
         }
         return;
       }
@@ -109,9 +121,9 @@ class _AppRootState extends State<AppRoot> {
   bool _emailPromptShown = false;
 
   Future<void> _openVerifyEmail() async {
-    final verified = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const VerifyEmailScreen()),
-    );
+    final verified = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const VerifyEmailScreen()));
     if (verified == true && mounted) {
       await _checkAuthStatus();
     }
@@ -126,13 +138,136 @@ class _AppRootState extends State<AppRoot> {
         SnackBar(
           content: const Text('Verifica tu correo para poder reservar citas.'),
           duration: const Duration(seconds: 8),
-          action: SnackBarAction(label: 'Verificar', onPressed: _openVerifyEmail),
+          action: SnackBarAction(
+            label: 'Verificar',
+            onPressed: _openVerifyEmail,
+          ),
         ),
       );
     });
   }
 
+  void _openNotificationsScreen() {
+    if (!mounted || !_isAuthenticated) return;
+    final roles = List<String>.from(_currentUser?['roles'] ?? ['USER']);
+    final isVerifiedPsychologist =
+        roles.contains('PSYCHOLOGIST') ||
+        roles.contains('PSYCHOLOGIST_VERIFIED') ||
+        _currentUser?['psychologistProfile']?['status'] == 'VERIFICADO';
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => isVerifiedPsychologist
+            ? const PsychologistNotificationsScreen()
+            : PatientNotificationsScreen(
+                onNavigateToDirectory: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    _currentNavIndex = 1;
+                    _selectedPsychologist = null;
+                  });
+                },
+              ),
+      ),
+    );
+  }
+
+  void _setupPushNotifications() {
+    final push = PushNotificationService();
+    push.setHandlers(
+      onForegroundMessage: (title, body, data) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(body),
+            duration: const Duration(seconds: 6),
+            action: SnackBarAction(
+              label: 'Ver',
+              onPressed: () => _openPushDestination(data),
+            ),
+          ),
+        );
+      },
+      onNotificationTap: (data) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _openPushDestination(data);
+        });
+        WidgetsBinding.instance.ensureVisualUpdate();
+      },
+    );
+    push.syncTokenForAuthenticatedUser();
+  }
+
+  void _openPushDestination(Map<String, dynamic> data) {
+    if (!mounted || !_isAuthenticated) return;
+    final type = data['type']?.toString() ?? 'SYSTEM';
+    final referenceId = data['referenceId']?.toString();
+    final roles = List<String>.from(_currentUser?['roles'] ?? const ['USER']);
+    final psychologist =
+        roles.contains('PSYCHOLOGIST') ||
+        roles.contains('PSYCHOLOGIST_VERIFIED') ||
+        _currentUser?['psychologistProfile']?['status'] == 'VERIFICADO';
+
+    if (referenceId != null &&
+        (type == 'PRIVATE_MESSAGE' || type == 'PRE_BOOKING_MESSAGE')) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PrivateChatScreen(
+            appointmentId: referenceId,
+            peerName: type == 'PRE_BOOKING_MESSAGE'
+                ? 'Contacto'
+                : 'Participante de la sesión',
+            preBooking: type == 'PRE_BOOKING_MESSAGE',
+          ),
+        ),
+      );
+      return;
+    }
+    if (referenceId != null &&
+        type == 'CONSULTATION_COMPLETED' &&
+        !psychologist) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ReviewScreen(appointmentId: referenceId),
+        ),
+      );
+      return;
+    }
+    if (type.startsWith('APPOINTMENT_') || type.startsWith('CONSULTATION_')) {
+      if (psychologist) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PsychologistConsultationsScreen(
+              onOpenNotifications: _openNotificationsScreen,
+              onToggleTheme: widget.onToggleTheme,
+              isDarkMode: widget.isDarkMode,
+              initialAppointmentId: referenceId,
+            ),
+          ),
+        );
+      } else {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PatientAppointmentsScreen(
+              initialAppointmentId: referenceId,
+              onNavigateToDirectory: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  _currentNavIndex = 1;
+                  _selectedPsychologist = null;
+                });
+              },
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    _openNotificationsScreen();
+  }
+
   Future<void> _handleLogout() async {
+    await PushNotificationService().unregisterCurrentToken();
     await AuthService().logout();
     if (mounted) {
       setState(() {
@@ -149,9 +284,7 @@ class _AppRootState extends State<AppRoot> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: AppTheme.primary),
-        ),
+        body: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
       );
     }
 
@@ -164,7 +297,8 @@ class _AppRootState extends State<AppRoot> {
     }
 
     final roles = List<String>.from(_currentUser?['roles'] ?? ['USER']);
-    final isVerifiedPsychologist = roles.contains('PSYCHOLOGIST') ||
+    final isVerifiedPsychologist =
+        roles.contains('PSYCHOLOGIST') ||
         roles.contains('PSYCHOLOGIST_VERIFIED') ||
         _currentUser?['psychologistProfile']?['status'] == 'VERIFICADO';
 
@@ -254,7 +388,9 @@ class _AppRootState extends State<AppRoot> {
                     _selectedPsychologist = null;
                   });
                 },
-                backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                backgroundColor: isDark
+                    ? const Color(0xFF0F172A)
+                    : Colors.white,
                 selectedItemColor: AppTheme.primary,
                 unselectedItemColor: Colors.grey,
                 type: BottomNavigationBarType.fixed,
@@ -315,7 +451,13 @@ class _AppRootState extends State<AppRoot> {
         child: Column(
           children: [
             const SizedBox(height: 12),
-            PersonAvatar(name: _currentUser?['name'] ?? '', photoUrl: _currentUser?['photoUrl'] ?? _currentUser?['psychologistProfile']?['photoUrl'], size: 100),
+            PersonAvatar(
+              name: _currentUser?['name'] ?? '',
+              photoUrl:
+                  _currentUser?['photoUrl'] ??
+                  _currentUser?['psychologistProfile']?['photoUrl'],
+              size: 100,
+            ),
             const SizedBox(height: 16),
             Text(
               _currentUser?['name'] ?? 'Mi cuenta',
@@ -325,7 +467,9 @@ class _AppRootState extends State<AppRoot> {
               _currentUser?['email'] ?? '',
               style: TextStyle(
                 fontSize: 13,
-                color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                color: isDark
+                    ? AppTheme.textSecondaryDark
+                    : AppTheme.textSecondaryLight,
               ),
             ),
             const SizedBox(height: 24),
@@ -362,10 +506,27 @@ class _AppRootState extends State<AppRoot> {
               },
             ),
             if (_currentUser?['emailVerified'] == false)
-              _buildSettingTile(Icons.mark_email_unread_outlined, 'Correo sin verificar: toca para verificar', isDark, onTap: _openVerifyEmail),
-            _buildSettingTile(Icons.shield_outlined, 'Privacy & Safety', isDark),
-            _buildSettingTile(Icons.notifications_none_outlined, 'Notification Settings', isDark),
-            _buildSettingTile(Icons.payment_outlined, 'Subscription & Billing', isDark),
+              _buildSettingTile(
+                Icons.mark_email_unread_outlined,
+                'Correo sin verificar: toca para verificar',
+                isDark,
+                onTap: _openVerifyEmail,
+              ),
+            _buildSettingTile(
+              Icons.shield_outlined,
+              'Privacy & Safety',
+              isDark,
+            ),
+            _buildSettingTile(
+              Icons.notifications_none_outlined,
+              'Notification Settings',
+              isDark,
+            ),
+            _buildSettingTile(
+              Icons.payment_outlined,
+              'Subscription & Billing',
+              isDark,
+            ),
             _buildSettingTile(
               Icons.help_outline,
               'Help & Support',
@@ -376,7 +537,6 @@ class _AppRootState extends State<AppRoot> {
                 );
               },
             ),
-
 
             const SizedBox(height: 20),
 
@@ -434,7 +594,12 @@ class _AppRootState extends State<AppRoot> {
     );
   }
 
-  Widget _buildSettingTile(IconData icon, String title, bool isDark, {VoidCallback? onTap}) {
+  Widget _buildSettingTile(
+    IconData icon,
+    String title,
+    bool isDark, {
+    VoidCallback? onTap,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
@@ -442,11 +607,15 @@ class _AppRootState extends State<AppRoot> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: isDark ? AppTheme.borderSubtleDark : AppTheme.borderSubtleLight,
+            color: isDark
+                ? AppTheme.borderSubtleDark
+                : AppTheme.borderSubtleLight,
           ),
         ),
         child: ListTile(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           leading: Icon(icon, color: AppTheme.primary),
           title: Text(
             title,
