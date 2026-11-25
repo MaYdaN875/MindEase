@@ -10,21 +10,29 @@ import '../theme/app_theme.dart';
 
 class PatientAppointmentsScreen extends StatefulWidget {
   final VoidCallback onNavigateToDirectory;
+  final String? initialAppointmentId;
 
   const PatientAppointmentsScreen({
     super.key,
     required this.onNavigateToDirectory,
+    this.initialAppointmentId,
   });
 
   @override
-  State<PatientAppointmentsScreen> createState() => _PatientAppointmentsScreenState();
+  State<PatientAppointmentsScreen> createState() =>
+      _PatientAppointmentsScreenState();
 }
 
 class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   final AppointmentService _appointmentService = AppointmentService();
 
   String _selectedFilter = 'Todas';
-  final List<String> _filters = ['Todas', 'Próximas', 'Completadas', 'Canceladas'];
+  final List<String> _filters = [
+    'Todas',
+    'Próximas',
+    'Completadas',
+    'Canceladas',
+  ];
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -48,7 +56,16 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       setState(() {
         _isLoading = false;
         if (res['success'] == true) {
-          _appointments = res['data'] ?? [];
+          final appointments = List<dynamic>.from(res['data'] ?? const []);
+          _appointments = widget.initialAppointmentId == null
+              ? appointments
+              : appointments
+                    .where(
+                      (item) =>
+                          item is Map &&
+                          item['id']?.toString() == widget.initialAppointmentId,
+                    )
+                    .toList();
         } else {
           _errorMessage = res['message'] ?? 'Error al cargar tus consultas';
         }
@@ -64,13 +81,21 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         return AlertDialog(
           backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Cancelar Consulta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Cancelar Consulta',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('¿Estás seguro de que deseas cancelar esta cita? Esta acción no se puede deshacer.', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              const Text(
+                '¿Estás seguro de que deseas cancelar esta cita? Esta acción no se puede deshacer.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: reasonController,
@@ -78,17 +103,25 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                 decoration: InputDecoration(
                   hintText: 'Motivo de la cancelación (opcional)',
                   hintStyle: const TextStyle(fontSize: 12),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   contentPadding: const EdgeInsets.all(12),
                 ),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Volver')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Volver'),
+            ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
               child: const Text('Confirmar cancelación'),
             ),
           ],
@@ -100,7 +133,9 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       final res = await _appointmentService.updateAppointmentStatus(
         appointmentId,
         'CANCELLED',
-        cancellationReason: reasonController.text.trim().isNotEmpty ? reasonController.text.trim() : null,
+        cancellationReason: reasonController.text.trim().isNotEmpty
+            ? reasonController.text.trim()
+            : null,
       );
       if (mounted) {
         if (res['success'] == true) {
@@ -115,7 +150,9 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(res['message'] ?? 'No se pudo cancelar la consulta.'),
+              content: Text(
+                res['message'] ?? 'No se pudo cancelar la consulta.',
+              ),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
             ),
@@ -131,9 +168,14 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       return _appointments.where((a) {
         final status = a['status'];
         final startAtStr = a['startAt'];
-        final startAt = startAtStr != null ? DateTime.parse(startAtStr).toLocal() : null;
-        return (status == 'CONFIRMED' || status == 'PENDING' || status == 'IN_PROGRESS') &&
-            (startAt == null || startAt.isAfter(now.subtract(const Duration(hours: 1))));
+        final startAt = startAtStr != null
+            ? DateTime.parse(startAtStr).toLocal()
+            : null;
+        return (status == 'CONFIRMED' ||
+                status == 'PENDING' ||
+                status == 'IN_PROGRESS') &&
+            (startAt == null ||
+                startAt.isAfter(now.subtract(const Duration(hours: 1))));
       }).toList();
     } else if (_selectedFilter == 'Completadas') {
       return _appointments.where((a) => a['status'] == 'COMPLETED').toList();
@@ -153,14 +195,22 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
         title: const Text('Mis Consultas'),
         centerTitle: true,
         actions: [
-          IconButton(tooltip: 'Mensajes privados', icon: const Icon(Icons.chat_bubble_outline),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivateChatInbox()))),
+          IconButton(
+            tooltip: 'Mensajes privados',
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PrivateChatInbox()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.receipt_long_outlined),
             tooltip: 'Mis Recibos y Pagos',
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PatientPaymentHistoryScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const PatientPaymentHistoryScreen(),
+                ),
               );
             },
           ),
@@ -171,7 +221,10 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
           children: [
             // Filter chips
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -188,21 +241,30 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                             fontWeight: FontWeight.bold,
                             color: isSelected
                                 ? AppTheme.textDark
-                                : (isDark ? AppTheme.textSecondaryDark : AppTheme.textMediumLight),
+                                : (isDark
+                                      ? AppTheme.textSecondaryDark
+                                      : AppTheme.textMediumLight),
                           ),
                         ),
                         selected: isSelected,
                         onSelected: (selected) {
-                          if (selected) setState(() => _selectedFilter = filter);
+                          if (selected)
+                            setState(() => _selectedFilter = filter);
                         },
                         selectedColor: AppTheme.primary,
-                        backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
+                        backgroundColor: isDark
+                            ? AppTheme.cardDark
+                            : Colors.white,
                         side: BorderSide(
                           color: isSelected
                               ? AppTheme.primary
-                              : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                              : (isDark
+                                    ? AppTheme.borderDark
+                                    : AppTheme.borderLight),
                         ),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                         showCheckmark: false,
                       ),
                     );
@@ -214,96 +276,142 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             // Content
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primary),
+                    )
                   : _errorMessage != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.cloud_off_outlined,
+                              size: 56,
+                              color: AppTheme.error,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _errorMessage!,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppTheme.error,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _fetchAppointments,
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text('Reintentar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primary,
+                                foregroundColor: AppTheme.textDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _fetchAppointments,
+                      color: AppTheme.primary,
+                      child: list.isEmpty
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
                               children: [
-                                const Icon(Icons.cloud_off_outlined, size: 56, color: AppTheme.error),
-                                const SizedBox(height: 12),
-                                Text(
-                                  _errorMessage!,
-                                  style: const TextStyle(fontSize: 14, color: AppTheme.error, fontWeight: FontWeight.w600),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton.icon(
-                                  onPressed: _fetchAppointments,
-                                  icon: const Icon(Icons.refresh, size: 18),
-                                  label: const Text('Reintentar'),
-                                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, foregroundColor: AppTheme.textDark),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24.0,
+                                    vertical: 60.0,
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.event_busy_outlined,
+                                        size: 64,
+                                        color: Colors.grey.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                      Text(
+                                        _selectedFilter == 'Todas'
+                                            ? 'Aún no tienes consultas agendadas'
+                                            : 'No hay consultas en la categoría "$_selectedFilter"',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark
+                                              ? AppTheme.textLight
+                                              : AppTheme.textDark,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Encuentra al profesional ideal y agenda tu sesión en minutos.',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: isDark
+                                              ? AppTheme.textSecondaryDark
+                                              : AppTheme.textSecondaryLight,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 20),
+                                      ElevatedButton.icon(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                          widget.onNavigateToDirectory();
+                                        },
+                                        icon: const Icon(
+                                          Icons.search,
+                                          size: 18,
+                                        ),
+                                        label: const Text(
+                                          'Explorar especialistas',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppTheme.primary,
+                                          foregroundColor: AppTheme.textDark,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
+                            )
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(
+                                parent: BouncingScrollPhysics(),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0,
+                                vertical: 8.0,
+                              ),
+                              itemCount: list.length,
+                              itemBuilder: (context, index) {
+                                final appt = list[index];
+                                return _buildAppointmentCard(appt, isDark);
+                              },
                             ),
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _fetchAppointments,
-                          color: AppTheme.primary,
-                          child: list.isEmpty
-                              ? ListView(
-                                  physics: const AlwaysScrollableScrollPhysics(),
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 60.0),
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.event_busy_outlined, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
-                                          const SizedBox(height: 14),
-                                          Text(
-                                            _selectedFilter == 'Todas'
-                                                ? 'Aún no tienes consultas agendadas'
-                                                : 'No hay consultas en la categoría "$_selectedFilter"',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: isDark ? AppTheme.textLight : AppTheme.textDark,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'Encuentra al profesional ideal y agenda tu sesión en minutos.',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          const SizedBox(height: 20),
-                                          ElevatedButton.icon(
-                                            onPressed: () {
-                                              Navigator.of(context).pop();
-                                              widget.onNavigateToDirectory();
-                                            },
-                                            icon: const Icon(Icons.search, size: 18),
-                                            label: const Text('Explorar especialistas', style: TextStyle(fontWeight: FontWeight.bold)),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppTheme.primary,
-                                              foregroundColor: AppTheme.textDark,
-                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : ListView.builder(
-                                  physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                                  itemCount: list.length,
-                                  itemBuilder: (context, index) {
-                                    final appt = list[index];
-                                    return _buildAppointmentCard(appt, isDark);
-                                  },
-                                ),
-                        ),
+                    ),
             ),
           ],
         ),
@@ -315,10 +423,11 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     final apptId = appt['id'];
     final doctorName = appt['psychologist']?['user']?['name'] ?? 'Especialista';
     final startAtStr = appt['startAt'];
-    final startAt = startAtStr != null ? DateTime.parse(startAtStr).toLocal() : null;
+    final startAt = startAtStr != null
+        ? DateTime.parse(startAtStr).toLocal()
+        : null;
     final status = appointmentDisplayStatus(appt);
     final price = appt['price'] ?? 0;
-
 
     final formattedDate = startAt != null
         ? '${startAt.day}/${startAt.month}/${startAt.year} • ${startAt.hour.toString().padLeft(2, '0')}:${startAt.minute.toString().padLeft(2, '0')} hrs'
@@ -339,7 +448,6 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
       statusColor = const Color(0xFF10B981);
       statusLabel = 'EN CURSO';
     }
-
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -373,7 +481,10 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                          PersonAvatar(name: doctorName, photoUrl: appt['psychologist']?['photoUrl']),
+                          PersonAvatar(
+                            name: doctorName,
+                            photoUrl: appt['psychologist']?['photoUrl'],
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -384,7 +495,9 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                                    color: isDark
+                                        ? AppTheme.textLight
+                                        : AppTheme.textDark,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -394,7 +507,9 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                                   'Psicoterapia Individual',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                                    color: isDark
+                                        ? AppTheme.textSecondaryDark
+                                        : AppTheme.textSecondaryLight,
                                   ),
                                 ),
                               ],
@@ -404,7 +519,10 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: statusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
@@ -426,7 +544,9 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isDark ? AppTheme.bgDark.withValues(alpha: 0.5) : AppTheme.surfaceContainerLow,
+                    color: isDark
+                        ? AppTheme.bgDark.withValues(alpha: 0.5)
+                        : AppTheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
@@ -434,11 +554,23 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.calendar_today, size: 14, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                          Icon(
+                            Icons.calendar_today,
+                            size: 14,
+                            color: isDark
+                                ? AppTheme.textSecondaryDark
+                                : AppTheme.textSecondaryLight,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             formattedDate,
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppTheme.textLight : AppTheme.textDark),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDark
+                                  ? AppTheme.textLight
+                                  : AppTheme.textDark,
+                            ),
                           ),
                         ],
                       ),
@@ -447,7 +579,9 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? AppTheme.primary : AppTheme.primaryDark,
+                          color: isDark
+                              ? AppTheme.primary
+                              : AppTheme.primaryDark,
                         ),
                       ),
                     ],
@@ -457,61 +591,109 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
             ),
           ),
 
-          if (status == 'COMPLETED') Padding(
-            padding: const EdgeInsets.all(12),
-            child: OutlinedButton.icon(icon: const Icon(Icons.star_outline),
-              label: const Text('Calificar / ver mi reseña'),
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => ReviewScreen(appointmentId: apptId)))),
-          ),
-          if (status == 'IN_PROGRESS') ...[
-            Divider(height: 1, color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+          if (status == 'COMPLETED')
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              padding: const EdgeInsets.all(12),
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.star_outline),
+                label: const Text('Calificar / ver mi reseña'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ReviewScreen(appointmentId: apptId),
+                  ),
+                ),
+              ),
+            ),
+          if (status == 'IN_PROGRESS') ...[
+            Divider(
+              height: 1,
+              color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 8.0,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.fiber_manual_record, color: Color(0xFF10B981), size: 12),
+                      Icon(
+                        Icons.fiber_manual_record,
+                        color: Color(0xFF10B981),
+                        size: 12,
+                      ),
                       SizedBox(width: 6),
-                      Text('Sesión en curso', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 12)),
+                      Text(
+                        'Sesión en curso',
+                        style: TextStyle(
+                          color: Color(0xFF10B981),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                   ElevatedButton.icon(
                     onPressed: () => VideoService.join(context, apptId),
                     icon: const Icon(Icons.videocam, size: 16),
-                    label: const Text('Unirse a consulta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    label: const Text(
+                      'Unirse a consulta',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
           ] else if (status == 'CONFIRMED' || status == 'PENDING') ...[
-            Divider(height: 1, color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+            Divider(
+              height: 1,
+              color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+            ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 8.0,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
                     onPressed: () => _cancelAppointment(apptId),
-                    child: const Text('Cancelar cita', style: TextStyle(color: AppTheme.error, fontSize: 13)),
+                    child: const Text(
+                      'Cancelar cita',
+                      style: TextStyle(color: AppTheme.error, fontSize: 13),
+                    ),
                   ),
                   if (status == 'CONFIRMED') ...[
                     const SizedBox(width: 8),
                     ElevatedButton.icon(
                       onPressed: () => VideoService.join(context, apptId),
                       icon: const Icon(Icons.videocam, size: 16),
-                      label: const Text('Entrar a sesión', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      label: const Text(
+                        'Entrar a sesión',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
                         foregroundColor: AppTheme.textDark,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ],

@@ -48,3 +48,14 @@ subprojects {
         }
     }
 }
+
+// The locally installed Android 34 platform is missing core-for-system-modules.jar.
+// Firebase plugins default to 34, so use the installed complete Android 35 SDK.
+subprojects {
+    if (name == "firebase_core" || name == "firebase_messaging") {
+        plugins.withId("com.android.library") {
+            extensions.getByType<com.android.build.api.variant.LibraryAndroidComponentsExtension>()
+                .finalizeDsl { it.compileSdk = 35 }
+        }
+    }
+}

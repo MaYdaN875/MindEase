@@ -10,23 +10,34 @@ class PsychologistConsultationsScreen extends StatefulWidget {
   final VoidCallback onOpenNotifications;
   final VoidCallback onToggleTheme;
   final bool isDarkMode;
+  final String? initialAppointmentId;
 
   const PsychologistConsultationsScreen({
     super.key,
     required this.onOpenNotifications,
     required this.onToggleTheme,
     required this.isDarkMode,
+    this.initialAppointmentId,
   });
 
   @override
-  State<PsychologistConsultationsScreen> createState() => _PsychologistConsultationsScreenState();
+  State<PsychologistConsultationsScreen> createState() =>
+      _PsychologistConsultationsScreenState();
 }
 
-class _PsychologistConsultationsScreenState extends State<PsychologistConsultationsScreen> {
+class _PsychologistConsultationsScreenState
+    extends State<PsychologistConsultationsScreen> {
   final AppointmentService _appointmentService = AppointmentService();
 
   String _selectedFilter = 'Todas';
-  final List<String> _filters = ['Todas', 'En curso', 'Solicitudes', 'Próximas', 'Finalizadas', 'Canceladas'];
+  final List<String> _filters = [
+    'Todas',
+    'En curso',
+    'Solicitudes',
+    'Próximas',
+    'Finalizadas',
+    'Canceladas',
+  ];
 
   bool _isLoading = true;
   List<dynamic> _appointments = [];
@@ -42,19 +53,34 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
       _isLoading = true;
     });
 
-    final res = await _appointmentService.getMyAppointments(asRole: 'psychologist');
+    final res = await _appointmentService.getMyAppointments(
+      asRole: 'psychologist',
+    );
 
     if (mounted) {
       setState(() {
         _isLoading = false;
         if (res['success'] == true) {
-          _appointments = res['data'] ?? [];
+          final appointments = List<dynamic>.from(res['data'] ?? const []);
+          _appointments = widget.initialAppointmentId == null
+              ? appointments
+              : appointments
+                    .where(
+                      (item) =>
+                          item is Map &&
+                          item['id']?.toString() == widget.initialAppointmentId,
+                    )
+                    .toList();
         }
       });
     }
   }
 
-  Future<void> _updateStatus(String appointmentId, String newStatus, {String? reason}) async {
+  Future<void> _updateStatus(
+    String appointmentId,
+    String newStatus, {
+    String? reason,
+  }) async {
     final res = await _appointmentService.updateAppointmentStatus(
       appointmentId,
       newStatus,
@@ -135,7 +161,9 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
   void _showConsultationDetails(dynamic appt) {
     final patientName = appt['user']?['name'] ?? 'Paciente';
     final startAtStr = appt['startAt'];
-    final startAt = startAtStr != null ? DateTime.parse(startAtStr).toLocal() : null;
+    final startAt = startAtStr != null
+        ? DateTime.parse(startAtStr).toLocal()
+        : null;
     final timeFormatted = startAt != null
         ? '${startAt.day}/${startAt.month}/${startAt.year} a las ${startAt.hour.toString().padLeft(2, '0')}:${startAt.minute.toString().padLeft(2, '0')}'
         : 'Sin fecha';
@@ -181,7 +209,10 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
@@ -202,9 +233,15 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
                   backgroundColor: AppTheme.primary.withValues(alpha: 0.2),
-                  child: Text(patientName.substring(0, 1).toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    patientName.substring(0, 1).toUpperCase(),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
-                title: Text(patientName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(
+                  patientName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Text('Horario: $timeFormatted • Videollamada'),
               ),
               const SizedBox(height: 12),
@@ -217,7 +254,9 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                 'Seguimiento y apoyo psicológico personalizado.',
                 style: TextStyle(
                   fontSize: 13,
-                  color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                  color: isDark
+                      ? AppTheme.textSecondaryDark
+                      : AppTheme.textSecondaryLight,
                 ),
               ),
               const SizedBox(height: 20),
@@ -225,7 +264,13 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                 OutlinedButton.icon(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ClinicalNotesScreen(appointmentId: apptId)));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ClinicalNotesScreen(appointmentId: apptId),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.edit_note),
                   label: const Text('Notas clínicas privadas'),
@@ -244,12 +289,17 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                       _startConsultation(apptId, patientName);
                     },
                     icon: const Icon(Icons.video_call),
-                    label: const Text('Iniciar Consulta Clínica', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'Iniciar Consulta Clínica',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       foregroundColor: AppTheme.textDark,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 if (status == 'IN_PROGRESS') ...[
@@ -259,27 +309,37 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                       _showCompleteDialog(apptId, patientName);
                     },
                     icon: const Icon(Icons.check_circle_outline),
-                    label: const Text('Finalizar Consulta', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'Finalizar Consulta',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ],
                 const SizedBox(height: 8),
-                if (status != 'IN_PROGRESS') OutlinedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _updateStatus(apptId, 'CANCELLED', reason: 'Cancelada por el profesional');
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.error,
-                    side: const BorderSide(color: AppTheme.error),
+                if (status != 'IN_PROGRESS')
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _updateStatus(
+                        apptId,
+                        'CANCELLED',
+                        reason: 'Cancelada por el profesional',
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.error,
+                      side: const BorderSide(color: AppTheme.error),
+                    ),
+                    child: const Text('Cancelar Cita'),
                   ),
-                  child: const Text('Cancelar Cita'),
-                ),
               ],
               const SizedBox(height: 8),
             ],
@@ -294,11 +354,25 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
       await VideoService.join(context, apptId);
       return;
     }
-    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Iniciar consulta'),
-      content: const Text('Se iniciará la consulta clínica y podrás entrar a Jitsi. Al salir de la llamada, finaliza la consulta aquí cuando corresponda.'),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Volver')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Iniciar'))],
-    ));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Iniciar consulta'),
+        content: const Text(
+          'Se iniciará la consulta clínica y podrás entrar a Jitsi. Al salir de la llamada, finaliza la consulta aquí cuando corresponda.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Volver'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Iniciar'),
+          ),
+        ],
+      ),
+    );
     if (confirmed != true || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -340,7 +414,9 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Finalizar Consulta'),
-        content: Text('¿Deseas dar por concluida la sesión clínica con $patientName? Se registrará como completada.'),
+        content: Text(
+          '¿Deseas dar por concluida la sesión clínica con $patientName? Se registrará como completada.',
+        ),
         actions: [
           TextButton(
             onPressed: () async {
@@ -352,12 +428,16 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final res = await _appointmentService.completeConsultation(apptId);
+              final res = await _appointmentService.completeConsultation(
+                apptId,
+              );
               if (mounted) {
                 if (res['success'] == true) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Consulta con $patientName finalizada con éxito.'),
+                      content: Text(
+                        'Consulta con $patientName finalizada con éxito.',
+                      ),
                       backgroundColor: const Color(0xFF10B981),
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -369,7 +449,9 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(res['message'] ?? 'Error al concluir consulta.'),
+                      content: Text(
+                        res['message'] ?? 'Error al concluir consulta.',
+                      ),
                       backgroundColor: AppTheme.error,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -398,13 +480,23 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(tooltip: 'Mensajes privados', icon: const Icon(Icons.chat_bubble_outline),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivateChatInbox()))),
+        leading: IconButton(
+          tooltip: 'Mensajes privados',
+          icon: const Icon(Icons.chat_bubble_outline),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PrivateChatInbox()),
+          ),
+        ),
         title: const Text('Consultas Clínicas'),
         centerTitle: false,
         actions: [
           IconButton(
-            icon: Icon(widget.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+            icon: Icon(
+              widget.isDarkMode
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined,
+            ),
             onPressed: widget.onToggleTheme,
             tooltip: 'Cambiar tema',
           ),
@@ -421,7 +513,10 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -457,19 +552,28 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                                     fontWeight: FontWeight.bold,
                                     color: isSelected
                                         ? AppTheme.textDark
-                                        : (isDark ? AppTheme.textSecondaryDark : AppTheme.textMediumLight),
+                                        : (isDark
+                                              ? AppTheme.textSecondaryDark
+                                              : AppTheme.textMediumLight),
                                   ),
                                 ),
                                 if (count > 0) ...[
                                   const SizedBox(width: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? AppTheme.textDark.withValues(alpha: 0.2)
+                                          ? AppTheme.textDark.withValues(
+                                              alpha: 0.2,
+                                            )
                                           : (filter == 'Solicitudes'
-                                              ? AppTheme.tertiaryFixedDim
-                                              : AppTheme.primary.withValues(alpha: 0.2)),
+                                                ? AppTheme.tertiaryFixedDim
+                                                : AppTheme.primary.withValues(
+                                                    alpha: 0.2,
+                                                  )),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
@@ -479,7 +583,9 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                                         fontWeight: FontWeight.bold,
                                         color: isSelected
                                             ? AppTheme.textDark
-                                            : (filter == 'Solicitudes' ? Colors.black : AppTheme.primaryDark),
+                                            : (filter == 'Solicitudes'
+                                                  ? Colors.black
+                                                  : AppTheme.primaryDark),
                                       ),
                                     ),
                                   ),
@@ -488,16 +594,23 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                             ),
                             selected: isSelected,
                             onSelected: (selected) {
-                              if (selected) setState(() => _selectedFilter = filter);
+                              if (selected)
+                                setState(() => _selectedFilter = filter);
                             },
                             selectedColor: AppTheme.primary,
-                            backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
+                            backgroundColor: isDark
+                                ? AppTheme.cardDark
+                                : Colors.white,
                             side: BorderSide(
                               color: isSelected
                                   ? AppTheme.primary
-                                  : (isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                                  : (isDark
+                                        ? AppTheme.borderDark
+                                        : AppTheme.borderLight),
                             ),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                             showCheckmark: false,
                           ),
                         );
@@ -509,7 +622,9 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
             ),
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primary),
+                    )
                   : RefreshIndicator(
                       onRefresh: _fetchAppointments,
                       color: AppTheme.primary,
@@ -518,16 +633,26 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                               physics: const AlwaysScrollableScrollPhysics(),
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 60.0),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 60.0,
+                                  ),
                                   child: Column(
                                     children: [
-                                      Icon(Icons.event_busy, size: 48, color: Colors.grey.withValues(alpha: 0.5)),
+                                      Icon(
+                                        Icons.event_busy,
+                                        size: 48,
+                                        color: Colors.grey.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                      ),
                                       const SizedBox(height: 12),
                                       Text(
                                         'No hay consultas en la categoría "$_selectedFilter"',
                                         style: TextStyle(
                                           fontSize: 14,
-                                          color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                                          color: isDark
+                                              ? AppTheme.textSecondaryDark
+                                              : AppTheme.textSecondaryLight,
                                         ),
                                       ),
                                     ],
@@ -537,13 +662,19 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                             )
                           : ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0,
+                                vertical: 8.0,
+                              ),
                               itemCount: filteredAppointments.length,
                               itemBuilder: (context, index) {
                                 final appt = filteredAppointments[index];
-                                final patientName = appt['user']?['name'] ?? 'Paciente';
+                                final patientName =
+                                    appt['user']?['name'] ?? 'Paciente';
                                 final startAtStr = appt['startAt'];
-                                final startAt = startAtStr != null ? DateTime.parse(startAtStr).toLocal() : null;
+                                final startAt = startAtStr != null
+                                    ? DateTime.parse(startAtStr).toLocal()
+                                    : null;
                                 final timeStr = startAt != null
                                     ? '${startAt.day}/${startAt.month}/${startAt.year} • ${startAt.hour.toString().padLeft(2, '0')}:${startAt.minute.toString().padLeft(2, '0')} hrs'
                                     : 'Sin fecha';
@@ -562,22 +693,30 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 14),
                                   decoration: BoxDecoration(
-                                    color: isDark ? AppTheme.cardDark : Colors.white,
+                                    color: isDark
+                                        ? AppTheme.cardDark
+                                        : Colors.white,
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
-                                      color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                                      color: isDark
+                                          ? AppTheme.borderDark
+                                          : AppTheme.borderLight,
                                     ),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
                                       Padding(
                                         padding: const EdgeInsets.all(16.0),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
                                               children: [
                                                 Expanded(
                                                   child: Row(
@@ -585,27 +724,50 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                                                       Container(
                                                         width: 4,
                                                         height: 36,
-                                                        margin: const EdgeInsets.only(right: 10),
+                                                        margin:
+                                                            const EdgeInsets.only(
+                                                              right: 10,
+                                                            ),
                                                         decoration: BoxDecoration(
                                                           color: statusColor,
-                                                          borderRadius: BorderRadius.circular(2),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                2,
+                                                              ),
                                                         ),
                                                       ),
                                                       Expanded(
                                                         child: Column(
-                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
                                                           children: [
                                                             const Text(
                                                               'PACIENTE',
-                                                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey),
+                                                              style: TextStyle(
+                                                                fontSize: 9,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color:
+                                                                    Colors.grey,
+                                                              ),
                                                             ),
-                                                            const SizedBox(height: 2),
+                                                            const SizedBox(
+                                                              height: 2,
+                                                            ),
                                                             Text(
                                                               patientName,
                                                               style: TextStyle(
                                                                 fontSize: 16,
-                                                                fontWeight: FontWeight.bold,
-                                                                color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: isDark
+                                                                    ? AppTheme
+                                                                          .textLight
+                                                                    : AppTheme
+                                                                          .textDark,
                                                               ),
                                                             ),
                                                           ],
@@ -615,16 +777,27 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                                                   ),
                                                 ),
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
                                                   decoration: BoxDecoration(
-                                                    color: statusColor.withValues(alpha: 0.15),
-                                                    borderRadius: BorderRadius.circular(8),
+                                                    color: statusColor
+                                                        .withValues(
+                                                          alpha: 0.15,
+                                                        ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
                                                   ),
                                                   child: Text(
                                                     status,
                                                     style: TextStyle(
                                                       fontSize: 11,
-                                                      fontWeight: FontWeight.bold,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                       color: statusColor,
                                                     ),
                                                   ),
@@ -634,83 +807,245 @@ class _PsychologistConsultationsScreenState extends State<PsychologistConsultati
                                             const SizedBox(height: 12),
                                             Row(
                                               children: [
-                                                Icon(Icons.calendar_today, size: 14, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                                                Icon(
+                                                  Icons.calendar_today,
+                                                  size: 14,
+                                                  color: isDark
+                                                      ? AppTheme
+                                                            .textSecondaryDark
+                                                      : AppTheme
+                                                            .textSecondaryLight,
+                                                ),
                                                 const SizedBox(width: 4),
-                                                Text(timeStr, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight)),
+                                                Text(
+                                                  timeStr,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: isDark
+                                                        ? AppTheme
+                                                              .textSecondaryDark
+                                                        : AppTheme
+                                                              .textSecondaryLight,
+                                                  ),
+                                                ),
                                                 const SizedBox(width: 14),
-                                                Icon(Icons.videocam, size: 14, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                                                Icon(
+                                                  Icons.videocam,
+                                                  size: 14,
+                                                  color: isDark
+                                                      ? AppTheme
+                                                            .textSecondaryDark
+                                                      : AppTheme
+                                                            .textSecondaryLight,
+                                                ),
                                                 const SizedBox(width: 4),
-                                                Text('Videollamada', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight)),
+                                                Text(
+                                                  'Videollamada',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: isDark
+                                                        ? AppTheme
+                                                              .textSecondaryDark
+                                                        : AppTheme
+                                                              .textSecondaryLight,
+                                                  ),
+                                                ),
                                               ],
                                             ),
                                           ],
                                         ),
                                       ),
-                                      Divider(height: 1, color: isDark ? AppTheme.borderDark : AppTheme.borderLight),
+                                      Divider(
+                                        height: 1,
+                                        color: isDark
+                                            ? AppTheme.borderDark
+                                            : AppTheme.borderLight,
+                                      ),
                                       Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12.0,
+                                          vertical: 8.0,
+                                        ),
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
                                           children: [
                                             if (status == 'PENDING') ...[
                                               TextButton(
-                                                onPressed: () => _showRejectDialog(apptId),
-                                                child: const Text('Rechazar', style: TextStyle(color: AppTheme.error, fontSize: 12)),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              ElevatedButton.icon(
-                                                onPressed: () => _updateStatus(apptId, 'CONFIRMED'),
-                                                icon: const Icon(Icons.check, size: 14),
-                                                label: const Text('Aceptar Cita', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: const Color(0xFF10B981),
-                                                  foregroundColor: Colors.white,
-                                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                onPressed: () =>
+                                                    _showRejectDialog(apptId),
+                                                child: const Text(
+                                                  'Rechazar',
+                                                  style: TextStyle(
+                                                    color: AppTheme.error,
+                                                    fontSize: 12,
+                                                  ),
                                                 ),
                                               ),
-                                            ] else if (status == 'CONFIRMED') ...[
-                                              TextButton(
-                                                onPressed: () => _showRejectDialog(apptId),
-                                                child: const Text('Cancelar', style: TextStyle(color: AppTheme.error, fontSize: 12)),
-                                              ),
-                                              TextButton(
-                                                onPressed: () => _showConsultationDetails(appt),
-                                                child: const Text('Ver detalles', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
-                                              ),
                                               const SizedBox(width: 8),
                                               ElevatedButton.icon(
-                                                onPressed: () => _startConsultation(apptId, patientName),
-                                                icon: const Icon(Icons.arrow_forward, size: 14),
-                                                label: const Text('Iniciar consulta', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                                onPressed: () => _updateStatus(
+                                                  apptId,
+                                                  'CONFIRMED',
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.check,
+                                                  size: 14,
+                                                ),
+                                                label: const Text(
+                                                  'Aceptar Cita',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
                                                 style: ElevatedButton.styleFrom(
-                                                  backgroundColor: AppTheme.primary,
-                                                  foregroundColor: AppTheme.textDark,
-                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                  backgroundColor: const Color(
+                                                    0xFF10B981,
+                                                  ),
+                                                  foregroundColor: Colors.white,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 14,
+                                                        vertical: 8,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
                                                 ),
                                               ),
-                                            ] else if (status == 'IN_PROGRESS') ...[
+                                            ] else if (status ==
+                                                'CONFIRMED') ...[
                                               TextButton(
-                                                onPressed: () => _showConsultationDetails(appt),
-                                                child: const Text('Ver detalles', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                                                onPressed: () =>
+                                                    _showRejectDialog(apptId),
+                                                child: const Text(
+                                                  'Cancelar',
+                                                  style: TextStyle(
+                                                    color: AppTheme.error,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              TextButton(
+                                                onPressed: () =>
+                                                    _showConsultationDetails(
+                                                      appt,
+                                                    ),
+                                                child: const Text(
+                                                  'Ver detalles',
+                                                  style: TextStyle(
+                                                    color: AppTheme.primary,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
                                               ),
                                               const SizedBox(width: 8),
                                               ElevatedButton.icon(
-                                                onPressed: () => VideoService.join(context, apptId),
-                                                icon: const Icon(Icons.videocam, size: 14),
-                                                label: const Text('Volver a la llamada', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                                onPressed: () =>
+                                                    _startConsultation(
+                                                      apptId,
+                                                      patientName,
+                                                    ),
+                                                icon: const Icon(
+                                                  Icons.arrow_forward,
+                                                  size: 14,
+                                                ),
+                                                label: const Text(
+                                                  'Iniciar consulta',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
                                                 style: ElevatedButton.styleFrom(
-                                                  backgroundColor: const Color(0xFF10B981),
+                                                  backgroundColor:
+                                                      AppTheme.primary,
+                                                  foregroundColor:
+                                                      AppTheme.textDark,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 8,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ] else if (status ==
+                                                'IN_PROGRESS') ...[
+                                              TextButton(
+                                                onPressed: () =>
+                                                    _showConsultationDetails(
+                                                      appt,
+                                                    ),
+                                                child: const Text(
+                                                  'Ver detalles',
+                                                  style: TextStyle(
+                                                    color: AppTheme.primary,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              ElevatedButton.icon(
+                                                onPressed: () =>
+                                                    VideoService.join(
+                                                      context,
+                                                      apptId,
+                                                    ),
+                                                icon: const Icon(
+                                                  Icons.videocam,
+                                                  size: 14,
+                                                ),
+                                                label: const Text(
+                                                  'Volver a la llamada',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: const Color(
+                                                    0xFF10B981,
+                                                  ),
                                                   foregroundColor: Colors.white,
-                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 8,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
                                                 ),
                                               ),
                                             ] else ...[
                                               TextButton(
-                                                onPressed: () => _showConsultationDetails(appt),
-                                                child: const Text('Ver detalles', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                                                onPressed: () =>
+                                                    _showConsultationDetails(
+                                                      appt,
+                                                    ),
+                                                child: const Text(
+                                                  'Ver detalles',
+                                                  style: TextStyle(
+                                                    color: AppTheme.primary,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ],

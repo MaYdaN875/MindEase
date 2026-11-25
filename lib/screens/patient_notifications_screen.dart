@@ -81,7 +81,15 @@ class _PatientNotificationsScreenState extends State<PatientNotificationsScreen>
     final type = notif['type'];
     final referenceId = notif['referenceId'];
     if (type == 'PRE_BOOKING_MESSAGE' || type == 'PRIVATE_MESSAGE') {
-      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivateChatInbox()));
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => referenceId == null
+            ? const PrivateChatInbox()
+            : PrivateChatScreen(
+                appointmentId: referenceId.toString(),
+                peerName: type == 'PRE_BOOKING_MESSAGE' ? 'Contacto' : 'Participante de la sesión',
+                preBooking: type == 'PRE_BOOKING_MESSAGE',
+              ),
+      ));
       if (mounted) _fetchNotifications();
       return;
     }
@@ -99,6 +107,7 @@ class _PatientNotificationsScreenState extends State<PatientNotificationsScreen>
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => PatientAppointmentsScreen(
+            initialAppointmentId: referenceId.toString(),
             onNavigateToDirectory: widget.onNavigateToDirectory ?? () {},
           ),
         ),
