@@ -90,10 +90,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (result['success'] == true) {
         final userName = result['data']?['name'] ?? 'Usuario';
         if (result['data']?['emailVerified'] != true) {
-          await Navigator.of(context).push<bool>(
+          final verified = await Navigator.of(context).push<bool>(
             MaterialPageRoute(builder: (_) => const VerifyEmailScreen()),
           );
           if (!mounted) return;
+          if (verified != true) {
+            setState(() {
+              _errorMessage =
+                  'Debes verificar tu correo electrónico antes de comenzar la entrevista inicial.';
+            });
+            return;
+          }
         }
         _showSuccessAndRedirect(userName);
       } else {
@@ -452,8 +459,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return 'Por favor ingresa tu correo';
                       }
                       if (!RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                      ).hasMatch(value)) {
+                        r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$",
+                      ).hasMatch(value.trim())) {
                         return 'Ingresa un correo electrónico válido';
                       }
                       return null;
