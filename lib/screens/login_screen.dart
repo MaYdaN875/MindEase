@@ -71,9 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
             decoration: BoxDecoration(
               color: isDark ? AppTheme.cardDark : Colors.white,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: AppTheme.primary.withOpacity(0.2),
-              ),
+              border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
               boxShadow: [
                 BoxShadow(
                   color: AppTheme.primary.withOpacity(0.1),
@@ -123,7 +121,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
-                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                    color: isDark
+                        ? AppTheme.textSecondaryDark
+                        : AppTheme.textSecondaryLight,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -161,7 +161,10 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Center(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: Form(
               key: _formKey,
               child: Column(
@@ -174,7 +177,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       icon: const Icon(Icons.arrow_back),
                       onPressed: () => Navigator.of(context).pop(),
                       style: IconButton.styleFrom(
-                        foregroundColor: isDark ? AppTheme.textLight : AppTheme.textDark,
+                        foregroundColor: isDark
+                            ? AppTheme.textLight
+                            : AppTheme.textDark,
                       ),
                     ),
                   ),
@@ -196,7 +201,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
-                      color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                      color: isDark
+                          ? AppTheme.textSecondaryDark
+                          : AppTheme.textSecondaryLight,
                     ),
                   ),
                   const SizedBox(height: 36),
@@ -207,11 +214,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: BoxDecoration(
                         color: Colors.redAccent.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                        border: Border.all(
+                          color: Colors.redAccent.withOpacity(0.3),
+                        ),
                       ),
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 14,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -221,37 +233,55 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: TextStyle(color: isDark ? AppTheme.textLight : AppTheme.textDark),
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Correo Electrónico',
                       labelStyle: TextStyle(
-                        color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                        color: isDark
+                            ? AppTheme.textSecondaryDark
+                            : AppTheme.textSecondaryLight,
                       ),
-                      prefixIcon: const Icon(Icons.email_outlined, color: AppTheme.primary),
+                      prefixIcon: const Icon(
+                        Icons.email_outlined,
+                        color: AppTheme.primary,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+                        borderSide: const BorderSide(
+                          color: AppTheme.primary,
+                          width: 2,
+                        ),
                       ),
                       filled: true,
-                      fillColor: isDark ? AppTheme.cardDark.withOpacity(0.5) : Colors.white,
+                      fillColor: isDark
+                          ? AppTheme.cardDark.withOpacity(0.5)
+                          : Colors.white,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Por favor ingresa tu correo';
                       }
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                      if (!RegExp(
+                        r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$",
+                      ).hasMatch(value.trim())) {
                         return 'Ingresa un correo electrónico válido';
                       }
                       return null;
@@ -262,16 +292,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    style: TextStyle(color: isDark ? AppTheme.textLight : AppTheme.textDark),
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textLight : AppTheme.textDark,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Contraseña',
                       labelStyle: TextStyle(
-                        color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                        color: isDark
+                            ? AppTheme.textSecondaryDark
+                            : AppTheme.textSecondaryLight,
                       ),
-                      prefixIcon: const Icon(Icons.lock_outlined, color: AppTheme.primary),
+                      prefixIcon: const Icon(
+                        Icons.lock_outlined,
+                        color: AppTheme.primary,
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                           color: Colors.grey,
                         ),
                         onPressed: () {
@@ -283,21 +322,30 @@ class _LoginScreenState extends State<LoginScreen> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                          color: isDark
+                              ? AppTheme.borderDark
+                              : AppTheme.borderLight,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+                        borderSide: const BorderSide(
+                          color: AppTheme.primary,
+                          width: 2,
+                        ),
                       ),
                       filled: true,
-                      fillColor: isDark ? AppTheme.cardDark.withOpacity(0.5) : Colors.white,
+                      fillColor: isDark
+                          ? AppTheme.cardDark.withOpacity(0.5)
+                          : Colors.white,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -319,7 +367,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                       child: const Text(
                         '¿Olvidaste tu contraseña?',
-                        style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -336,7 +387,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      disabledBackgroundColor: AppTheme.primary.withOpacity(0.5),
+                      disabledBackgroundColor: AppTheme.primary.withOpacity(
+                        0.5,
+                      ),
                     ),
                     child: _isLoading
                         ? const SizedBox(
@@ -344,12 +397,18 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.bgDark),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppTheme.bgDark,
+                              ),
                             ),
                           )
                         : const Text(
                             'Iniciar Sesión',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                   ),
                   const SizedBox(height: 24),
@@ -360,7 +419,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(
                         '¿No tienes cuenta? ',
                         style: TextStyle(
-                          color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                          color: isDark
+                              ? AppTheme.textSecondaryDark
+                              : AppTheme.textSecondaryLight,
                         ),
                       ),
                       GestureDetector(
@@ -404,13 +465,18 @@ class _LoginScreenState extends State<LoginScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Ingresa tu correo y te enviaremos instrucciones de recuperación.'),
+              const Text(
+                'Ingresa tu correo y te enviaremos instrucciones de recuperación.',
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: emailController,
                 decoration: const InputDecoration(
                   labelText: 'Correo Electrónico',
-                  prefixIcon: Icon(Icons.email_outlined, color: AppTheme.primary),
+                  prefixIcon: Icon(
+                    Icons.email_outlined,
+                    color: AppTheme.primary,
+                  ),
                 ),
               ),
             ],
@@ -418,7 +484,10 @@ class _LoginScreenState extends State<LoginScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -427,7 +496,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   Navigator.of(ctx).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Se ha enviado un enlace de recuperación si la cuenta existe.'),
+                      content: Text(
+                        'Se ha enviado un enlace de recuperación si la cuenta existe.',
+                      ),
                       backgroundColor: AppTheme.primary,
                     ),
                   );

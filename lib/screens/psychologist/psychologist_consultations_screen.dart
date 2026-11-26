@@ -4,6 +4,7 @@ import '../../services/appointment_service.dart';
 import '../../models/appointment_status.dart';
 import '../../services/video_service.dart';
 import 'clinical_notes_screen.dart';
+import 'initial_interview_report_screen.dart';
 import '../../theme/app_theme.dart';
 
 class PsychologistConsultationsScreen extends StatefulWidget {
@@ -169,6 +170,7 @@ class _PsychologistConsultationsScreenState
         : 'Sin fecha';
     final status = appointmentDisplayStatus(appt);
     final apptId = appt['id'];
+    final patientId = appt['user']?['id']?.toString();
 
     showModalBottomSheet(
       context: context,
@@ -274,6 +276,20 @@ class _PsychologistConsultationsScreenState
                   },
                   icon: const Icon(Icons.edit_note),
                   label: const Text('Notas clínicas privadas'),
+                ),
+              if (patientId != null)
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => InitialInterviewReportScreen(
+                        patientId: patientId,
+                        appointmentId: apptId.toString(),
+                      ),
+                    ));
+                  },
+                  icon: const Icon(Icons.assignment_outlined),
+                  label: const Text('Entrevista inicial del paciente'),
                 ),
               if (status == 'IN_PROGRESS')
                 OutlinedButton.icon(

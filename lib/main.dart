@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/verify_email_screen.dart';
+import 'screens/initial_interview_screen.dart';
 import 'widgets/person_avatar.dart';
 import 'models/psychologist.dart';
 import 'screens/directory_screen.dart';
@@ -10,6 +11,7 @@ import 'screens/profile_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
 import 'services/push_notification_service.dart';
+import 'services/initial_interview_service.dart';
 import 'screens/application_status_screen.dart';
 import 'screens/psychologist/psychologist_main_layout.dart';
 import 'screens/psychologist/psychologist_notifications_screen.dart';
@@ -83,6 +85,9 @@ class _AppRootState extends State<AppRoot> {
   int _currentNavIndex =
       0; // 0 = Home, 1 = Explore/Directory, 2 = Community, 3 = Profile
   Psychologist? _selectedPsychologist;
+  Map<String, dynamic>? _interviewStatus;
+  String? _interviewStatusError;
+  bool _interviewRequired = false;
 
   @override
   void initState() {
@@ -96,9 +101,28 @@ class _AppRootState extends State<AppRoot> {
     if (hasToken) {
       final result = await authService.getProfile();
       if (result['success'] == true) {
+        final user = Map<String, dynamic>.from(result['user'] ?? result['data']);
+        final roles = List<String>.from(user['roles'] ?? const []);
+        final isPatient = roles.contains('USER') &&
+            !roles.any((role) => ['ADMIN', 'SUPERADMIN', 'PSYCHOLOGIST', 'PSYCHOLOGIST_APPLICANT', 'PSYCHOLOGIST_VERIFIED'].contains(role));
+        Map<String, dynamic>? interviewStatus;
+        String? interviewError;
+        var interviewRequired = false;
+        if (isPatient && user['emailVerified'] == true) {
+          final statusResult = await InitialInterviewService().getStatus();
+          if (statusResult['success'] == true) {
+            interviewStatus = Map<String, dynamic>.from(statusResult['data'] as Map);
+            interviewRequired = shouldAutomaticallyOpenInitialInterview(interviewStatus['status']?.toString());
+          } else {
+            interviewError = statusResult['message']?.toString() ?? 'No se pudo verificar el estado de la entrevista.';
+          }
+        }
         if (mounted) {
           setState(() {
-            _currentUser = result['user'] ?? result['data'];
+            _currentUser = user;
+            _interviewStatus = interviewStatus;
+            _interviewStatusError = interviewError;
+            _interviewRequired = interviewRequired;
             _isAuthenticated = true;
             _showOnboarding = false;
             _isLoading = false;
@@ -113,6 +137,9 @@ class _AppRootState extends State<AppRoot> {
       setState(() {
         _isAuthenticated = false;
         _showOnboarding = true;
+        _interviewStatus = null;
+        _interviewStatusError = null;
+        _interviewRequired = false;
         _isLoading = false;
       });
     }
@@ -274,6 +301,9 @@ class _AppRootState extends State<AppRoot> {
         _isAuthenticated = false;
         _showOnboarding = true;
         _currentUser = null;
+        _interviewStatus = null;
+        _interviewStatusError = null;
+        _interviewRequired = false;
         _emailPromptShown = false;
         _currentNavIndex = 0;
       });
@@ -293,6 +323,17 @@ class _AppRootState extends State<AppRoot> {
         onFinishOnboarding: () {
           _checkAuthStatus();
         },
+      );
+    }
+
+    if (_interviewStatusError != null) {
+      return _buildInterviewStatusError();
+    }
+
+    if (_interviewRequired) {
+      return InitialInterviewScreen(
+        onFinished: _refreshInterviewStatus,
+        onPaused: _pauseInitialInterview,
       );
     }
 
@@ -430,6 +471,68 @@ class _AppRootState extends State<AppRoot> {
     );
   }
 
+  Future<void> _refreshInterviewStatus() async {
+    final result = await InitialInterviewService().getStatus();
+    if (!mounted) return;
+    if (result['success'] != true) {
+      setState(() {
+        _interviewStatusError = result['message']?.toString() ?? 'No se pudo actualizar el estado de la entrevista.';
+      });
+      return;
+    }
+    final status = Map<String, dynamic>.from(result['data'] as Map);
+    setState(() {
+      _interviewStatus = status;
+      _interviewStatusError = null;
+      _interviewRequired = ['PENDING', 'IN_PROGRESS'].contains(status['status']);
+    });
+  }
+
+  Future<void> _pauseInitialInterview() async {
+    if (mounted) setState(() => _interviewRequired = false);
+  }
+
+  Widget _buildInterviewStatusError() => Scaffold(
+    body: SafeArea(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_outline, size: 42, color: AppTheme.primaryDark),
+              const SizedBox(height: 16),
+              const Text('No pudimos verificar el estado de tu entrevista inicial.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 8),
+              Text(_interviewStatusError ?? '', textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              ElevatedButton(onPressed: _checkAuthStatus, child: const Text('Reintentar')),
+              TextButton(
+                onPressed: () => setState(() {
+                  _interviewStatusError = null;
+                  _interviewRequired = false;
+                }),
+                child: const Text('Continuar sin entrevista'),
+              ),
+              TextButton(onPressed: _handleLogout, child: const Text('Cerrar sesión')),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Future<void> _openInitialInterview() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InitialInterviewScreen(
+          onFinished: _refreshInterviewStatus,
+          onPaused: _pauseInitialInterview,
+        ),
+      ),
+    );
+  }
+
   Widget _buildUserProfileScreen(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -505,6 +608,13 @@ class _AppRootState extends State<AppRoot> {
                 );
               },
             ),
+            if (_interviewStatus != null)
+              _buildSettingTile(
+                Icons.assignment_outlined,
+                'Entrevista inicial: ${_interviewStatus?['status'] == 'COMPLETED' ? 'Completada' : _interviewStatus?['status'] == 'ESCALATED' ? 'Pendiente de seguimiento' : 'Pendiente'}',
+                isDark,
+                onTap: _interviewStatus?['status'] == 'COMPLETED' ? null : _openInitialInterview,
+              ),
             if (_currentUser?['emailVerified'] == false)
               _buildSettingTile(
                 Icons.mark_email_unread_outlined,
