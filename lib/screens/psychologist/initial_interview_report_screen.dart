@@ -87,7 +87,7 @@ class _InitialInterviewReportScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Entrevista de demostración'),
+        title: const Text('Entrevista inicial'),
         actions: [
           if (_data != null)
             IconButton(

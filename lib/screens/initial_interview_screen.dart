@@ -408,7 +408,7 @@ class _InitialInterviewScreenState extends State<InitialInterviewScreen> {
             children: [
               const Icon(Icons.spa_outlined, color: AppTheme.primary),
               const SizedBox(width: 8),
-              Text('Entrevista de demostración', style: Theme.of(context).textTheme.titleMedium),
+              Text('Entrevista inicial', style: Theme.of(context).textTheme.titleMedium),
             ],
           ),
           actions: [
@@ -474,7 +474,7 @@ class _InitialInterviewScreenState extends State<InitialInterviewScreen> {
       ),
       const SizedBox(height: 8),
       const Text(
-        'Demostración académica: utiliza únicamente datos ficticios. Esta entrevista no ofrece atención clínica ni diagnóstico. No hay supervisión humana ni seguimiento de alertas.',
+        'Esta entrevista es voluntaria y no ofrece atención de emergencia ni diagnóstico. No hay supervisión humana ni seguimiento automático de alertas.',
         textAlign: TextAlign.center,
       ),
       const SizedBox(height: 22),
