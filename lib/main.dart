@@ -608,7 +608,7 @@ class _AppRootState extends State<AppRoot> {
                 );
               },
             ),
-            if (_interviewStatus != null)
+            if (_interviewStatus != null && _interviewStatus?['available'] != false)
               _buildSettingTile(
                 Icons.assignment_outlined,
                 'Entrevista inicial: ${_interviewStatus?['status'] == 'COMPLETED' ? 'Completada' : _interviewStatus?['status'] == 'ESCALATED' ? 'Pendiente de seguimiento' : 'Pendiente'}',

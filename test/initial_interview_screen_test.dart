@@ -75,6 +75,7 @@ void main() {
     expect(shouldAutomaticallyOpenInitialInterview('IN_PROGRESS'), isTrue);
     expect(shouldAutomaticallyOpenInitialInterview('ESCALATED'), isTrue);
     expect(shouldAutomaticallyOpenInitialInterview('COMPLETED'), isFalse);
+    expect(shouldAutomaticallyOpenInitialInterview('UNAVAILABLE'), isFalse);
     expect(shouldAutomaticallyOpenInitialInterview(null), isFalse);
   });
 

@@ -408,7 +408,7 @@ class _InitialInterviewScreenState extends State<InitialInterviewScreen> {
             children: [
               const Icon(Icons.spa_outlined, color: AppTheme.primary),
               const SizedBox(width: 8),
-              Text('MindEase', style: Theme.of(context).textTheme.titleMedium),
+              Text('Entrevista de demostración', style: Theme.of(context).textTheme.titleMedium),
             ],
           ),
           actions: [
@@ -474,7 +474,7 @@ class _InitialInterviewScreenState extends State<InitialInterviewScreen> {
       ),
       const SizedBox(height: 8),
       const Text(
-        'Realizaremos una entrevista inicial guiada, pregunta por pregunta, para comprender qué tipo de apoyo buscas. No es un diagnóstico y no sustituye la atención de un profesional.',
+        'Demostración académica: utiliza únicamente datos ficticios. Esta entrevista no ofrece atención clínica ni diagnóstico. No hay supervisión humana ni seguimiento de alertas.',
         textAlign: TextAlign.center,
       ),
       const SizedBox(height: 22),
